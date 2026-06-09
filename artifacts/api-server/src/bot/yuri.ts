@@ -1,3 +1,6 @@
+import crypto from "crypto";
+import fs from "fs";
+import path from "path";
 import {
   Client,
   GatewayIntentBits,
@@ -9,6 +12,7 @@ import {
   type Message,
   type ChatInputCommandInteraction,
   type GuildMember,
+  type TextChannel,
   ActivityType,
   InteractionType,
   EmbedBuilder,
@@ -408,12 +412,52 @@ function formatTimestamp(ts: number): string {
   return new Date(ts).toLocaleString("ar-SA", { dateStyle: "short", timeStyle: "short" });
 }
 
+const COMMANDS_HASH_FILE = path.join(process.cwd(), "data", "commands-hash.json");
+
+function getCommandsHash(): string {
+  return crypto.createHash("sha256").update(JSON.stringify(COMMANDS)).digest("hex").slice(0, 16);
+}
+
+function loadSavedHash(): string | null {
+  try { return JSON.parse(fs.readFileSync(COMMANDS_HASH_FILE, "utf8")).hash ?? null; } catch { return null; }
+}
+
+function saveHash(hash: string): void {
+  try {
+    fs.mkdirSync(path.dirname(COMMANDS_HASH_FILE), { recursive: true });
+    fs.writeFileSync(COMMANDS_HASH_FILE, JSON.stringify({ hash }));
+  } catch { /* ignore */ }
+}
+
 async function registerCommands(token: string, clientId: string) {
+  const current = getCommandsHash();
+  const saved = loadSavedHash();
+  if (saved === current) {
+    logger.info("Slash commands unchanged — skipping registration.");
+    return;
+  }
+
   const rest = new REST({ version: "10" }).setToken(token);
-  logger.info("Clearing old global slash commands...");
-  await rest.put(Routes.applicationCommands(clientId), { body: [] });
-  await rest.put(Routes.applicationCommands(clientId), { body: COMMANDS });
-  logger.info(`Registered ${COMMANDS.length} slash commands.`);
+
+  for (let attempt = 1; attempt <= 5; attempt++) {
+    try {
+      logger.info({ attempt }, "Registering slash commands...");
+      await rest.put(Routes.applicationCommands(clientId), { body: COMMANDS });
+      saveHash(current);
+      logger.info(`✅ Registered ${COMMANDS.length} slash commands.`);
+      return;
+    } catch (err: unknown) {
+      const e = err as { status?: number; rawError?: { retry_after?: number; code?: number } };
+      if (e?.status === 429) {
+        const retryAfter = (e.rawError?.retry_after ?? 60) + 5;
+        logger.warn({ retryAfter, attempt }, `Rate limited by Discord — retrying in ${retryAfter}s`);
+        await new Promise((r) => setTimeout(r, retryAfter * 1000));
+      } else {
+        throw err;
+      }
+    }
+  }
+  logger.error("Failed to register slash commands after 5 attempts.");
 }
 
 // ── Bot Entry ────────────────────────────────────────────────────────────────
@@ -423,8 +467,8 @@ export function startDiscordBot() {
   const groqApiKey = process.env.GROQ_API_KEY;
   const runwareApiKey = process.env.RUNWARE_API_KEY;
 
-  if (!token) { logger.error("DISCORD_BOT_TOKEN is not set"); return; }
-  if (!groqApiKey) { logger.error("GROQ_API_KEY is not set"); return; }
+  if (!token) { throw new Error("DISCORD_BOT_TOKEN is not set"); }
+  if (!groqApiKey) { throw new Error("GROQ_API_KEY is not set"); }
 
   const openai = new OpenAI({
     apiKey: groqApiKey,
@@ -491,7 +535,7 @@ export function startDiscordBot() {
     userContent = userContent.trim() || "أهلاً";
 
     try {
-      await message.channel.sendTyping();
+      if ("sendTyping" in message.channel) await message.channel.sendTyping();
       const reply = await getAIReply(openai, message.author.id, userContent);
       for (const chunk of splitMessage(reply)) await message.reply(chunk);
     } catch (err) {
@@ -643,8 +687,8 @@ export function startDiscordBot() {
           const user = await client.users.fetch(userId);
           await user.send(`⏰ **تذكير من 〆 𝐔𝐑!**\n\n${msg}`);
         } catch {
-          if (slash.channel) {
-            await slash.channel.send(`⏰ <@${userId}> **تذكير:** ${msg}`).catch(() => null);
+          if (slash.channel && "send" in slash.channel) {
+            await (slash.channel as TextChannel).send(`⏰ <@${userId}> **تذكير:** ${msg}`).catch(() => null);
           }
         }
       }, ms);

@@ -76,8 +76,12 @@ startMainServer();
 
 // Only start the bot if it was enabled (persisted state)
 if (isBotEnabled()) {
-  const client = startDiscordBot();
-  registerClient(client);
+  try {
+    const client = startDiscordBot();
+    registerClient(client);
+  } catch (err) {
+    logger.error({ err }, "Failed to start Discord bot");
+  }
 } else {
   logger.info("Bot is disabled via dashboard — skipping startup");
 }
