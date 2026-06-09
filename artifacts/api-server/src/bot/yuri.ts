@@ -244,18 +244,9 @@ const COMMANDS = [
 
   new SlashCommandBuilder()
     .setName("image")
-    .setDescription("ولّد صورة بالذكاء الاصطناعي 🎨")
+    .setDescription("ولّد صورة بالذكاء الاصطناعي 🎨 — اكتب بالعربي أو الإنجليزي")
     .addStringOption((o) =>
-      o.setName("prompt").setDescription("وصف الصورة اللي تبيها (بالإنجليزي يعطي نتائج أفضل)").setRequired(true),
-    )
-    .addStringOption((o) =>
-      o.setName("size")
-        .setDescription("حجم الصورة")
-        .addChoices(
-          { name: "مربع 1024×1024", value: "1024x1024" },
-          { name: "أفقي 1280×720", value: "1280x720" },
-          { name: "عمودي 720×1280", value: "720x1280" },
-        ),
+      o.setName("prompt").setDescription("وصف الصورة — مثال: كلب مع قطة في حديقة").setRequired(true),
     ),
 
   new SlashCommandBuilder()
@@ -825,19 +816,37 @@ export function startDiscordBot() {
         await slash.reply({ content: "⚠️ ميزة توليد الصور مو مفعّلة حالياً.", ephemeral: true });
         return;
       }
-      const prompt = slash.options.getString("prompt", true);
-      const sizeOpt = slash.options.getString("size") ?? "1024x1024";
-      const [w, h] = sizeOpt.split("x").map(Number) as [number, number];
-
+      const arabicPrompt = slash.options.getString("prompt", true);
       await slash.deferReply();
       try {
-        const imageURL = await generateImage(runwareApiKey, prompt, w, h);
+        // ترجمة النص للإنجليزي إذا كان يحتوي على عربي
+        let englishPrompt = arabicPrompt;
+        const hasArabic = /[\u0600-\u06FF]/.test(arabicPrompt);
+        if (hasArabic) {
+          const translation = await openai.chat.completions.create({
+            model: "llama-3.3-70b-versatile",
+            max_tokens: 200,
+            messages: [
+              {
+                role: "system",
+                content: "You are a translator. Translate the user's Arabic image description into a detailed English prompt suitable for AI image generation. Return ONLY the English prompt, nothing else. No explanations, no quotes.",
+              },
+              { role: "user", content: arabicPrompt },
+            ],
+          });
+          englishPrompt = translation.choices[0]?.message?.content?.trim() ?? arabicPrompt;
+        }
+
+        const imageURL = await generateImage(runwareApiKey, englishPrompt, 1024, 1024);
         const embed = new EmbedBuilder()
           .setColor(0x5865f2)
           .setTitle("🎨 صورتك جاهزة!")
-          .setDescription(`**الوصف:** ${prompt}`)
+          .addFields(
+            { name: "📝 طلبك", value: arabicPrompt },
+            { name: "🔤 البرومبت (إنجليزي)", value: englishPrompt },
+          )
           .setImage(imageURL)
-          .setFooter({ text: `الحجم: ${sizeOpt} • Powered by Runware.ai` });
+          .setFooter({ text: "1024×1024 • Powered by Runware.ai" });
         await slash.editReply({ embeds: [embed] });
       } catch (err) {
         logger.error({ err }, "Error in /image");
