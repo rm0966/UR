@@ -47,11 +47,7 @@ export async function startBot(): Promise<void> {
   setBotEnabled(true);
 
   const { startDiscordBot } = await import("./yuri");
-  try {
-    const client = startDiscordBot();
-    registerClient(client);
-    logger.info("Bot started via dashboard");
-  } catch (err) {
-    logger.error({ err }, "Failed to start Discord bot");
-  }
+  const client = startDiscordBot();
+  registerClient(client);
+  logger.info("Bot started via dashboard");
 }

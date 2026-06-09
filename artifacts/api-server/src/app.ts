@@ -34,10 +34,6 @@ app.get("/", (_req, res) => {
   res.send(DASHBOARD_HTML);
 });
 
-app.get("/healthz", (_req, res) => {
-  res.status(200).json({ ok: true });
-});
-
 app.use("/api", router);
 
 export default app;

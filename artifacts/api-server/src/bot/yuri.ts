@@ -1,6 +1,3 @@
-import crypto from "crypto";
-import fs from "fs";
-import path from "path";
 import {
   Client,
   GatewayIntentBits,
@@ -12,7 +9,6 @@ import {
   type Message,
   type ChatInputCommandInteraction,
   type GuildMember,
-  type TextChannel,
   ActivityType,
   InteractionType,
   EmbedBuilder,
@@ -248,9 +244,18 @@ const COMMANDS = [
 
   new SlashCommandBuilder()
     .setName("image")
-    .setDescription("ولّد صورة بالذكاء الاصطناعي 🎨 — اكتب بالعربي أو الإنجليزي")
+    .setDescription("ولّد صورة بالذكاء الاصطناعي 🎨")
     .addStringOption((o) =>
-      o.setName("prompt").setDescription("وصف الصورة — مثال: كلب مع قطة في حديقة").setRequired(true),
+      o.setName("prompt").setDescription("وصف الصورة اللي تبيها (بالإنجليزي يعطي نتائج أفضل)").setRequired(true),
+    )
+    .addStringOption((o) =>
+      o.setName("size")
+        .setDescription("حجم الصورة")
+        .addChoices(
+          { name: "مربع 1024×1024", value: "1024x1024" },
+          { name: "أفقي 1280×720", value: "1280x720" },
+          { name: "عمودي 720×1280", value: "720x1280" },
+        ),
     ),
 
   new SlashCommandBuilder()
@@ -412,52 +417,12 @@ function formatTimestamp(ts: number): string {
   return new Date(ts).toLocaleString("ar-SA", { dateStyle: "short", timeStyle: "short" });
 }
 
-const COMMANDS_HASH_FILE = path.join(process.cwd(), "data", "commands-hash.json");
-
-function getCommandsHash(): string {
-  return crypto.createHash("sha256").update(JSON.stringify(COMMANDS)).digest("hex").slice(0, 16);
-}
-
-function loadSavedHash(): string | null {
-  try { return JSON.parse(fs.readFileSync(COMMANDS_HASH_FILE, "utf8")).hash ?? null; } catch { return null; }
-}
-
-function saveHash(hash: string): void {
-  try {
-    fs.mkdirSync(path.dirname(COMMANDS_HASH_FILE), { recursive: true });
-    fs.writeFileSync(COMMANDS_HASH_FILE, JSON.stringify({ hash }));
-  } catch { /* ignore */ }
-}
-
 async function registerCommands(token: string, clientId: string) {
-  const current = getCommandsHash();
-  const saved = loadSavedHash();
-  if (saved === current) {
-    logger.info("Slash commands unchanged — skipping registration.");
-    return;
-  }
-
   const rest = new REST({ version: "10" }).setToken(token);
-
-  for (let attempt = 1; attempt <= 5; attempt++) {
-    try {
-      logger.info({ attempt }, "Registering slash commands...");
-      await rest.put(Routes.applicationCommands(clientId), { body: COMMANDS });
-      saveHash(current);
-      logger.info(`✅ Registered ${COMMANDS.length} slash commands.`);
-      return;
-    } catch (err: unknown) {
-      const e = err as { status?: number; rawError?: { retry_after?: number; code?: number } };
-      if (e?.status === 429) {
-        const retryAfter = (e.rawError?.retry_after ?? 60) + 5;
-        logger.warn({ retryAfter, attempt }, `Rate limited by Discord — retrying in ${retryAfter}s`);
-        await new Promise((r) => setTimeout(r, retryAfter * 1000));
-      } else {
-        throw err;
-      }
-    }
-  }
-  logger.error("Failed to register slash commands after 5 attempts.");
+  logger.info("Clearing old global slash commands...");
+  await rest.put(Routes.applicationCommands(clientId), { body: [] });
+  await rest.put(Routes.applicationCommands(clientId), { body: COMMANDS });
+  logger.info(`Registered ${COMMANDS.length} slash commands.`);
 }
 
 // ── Bot Entry ────────────────────────────────────────────────────────────────
@@ -467,8 +432,8 @@ export function startDiscordBot() {
   const groqApiKey = process.env.GROQ_API_KEY;
   const runwareApiKey = process.env.RUNWARE_API_KEY;
 
-  if (!token) { throw new Error("DISCORD_BOT_TOKEN is not set"); }
-  if (!groqApiKey) { throw new Error("GROQ_API_KEY is not set"); }
+  if (!token) { logger.error("DISCORD_BOT_TOKEN is not set"); return; }
+  if (!groqApiKey) { logger.error("GROQ_API_KEY is not set"); return; }
 
   const openai = new OpenAI({
     apiKey: groqApiKey,
@@ -535,7 +500,7 @@ export function startDiscordBot() {
     userContent = userContent.trim() || "أهلاً";
 
     try {
-      if ("sendTyping" in message.channel) await message.channel.sendTyping();
+      await message.channel.sendTyping();
       const reply = await getAIReply(openai, message.author.id, userContent);
       for (const chunk of splitMessage(reply)) await message.reply(chunk);
     } catch (err) {
@@ -687,8 +652,8 @@ export function startDiscordBot() {
           const user = await client.users.fetch(userId);
           await user.send(`⏰ **تذكير من 〆 𝐔𝐑!**\n\n${msg}`);
         } catch {
-          if (slash.channel && "send" in slash.channel) {
-            await (slash.channel as TextChannel).send(`⏰ <@${userId}> **تذكير:** ${msg}`).catch(() => null);
+          if (slash.channel) {
+            await slash.channel.send(`⏰ <@${userId}> **تذكير:** ${msg}`).catch(() => null);
           }
         }
       }, ms);
@@ -860,37 +825,19 @@ export function startDiscordBot() {
         await slash.reply({ content: "⚠️ ميزة توليد الصور مو مفعّلة حالياً.", ephemeral: true });
         return;
       }
-      const arabicPrompt = slash.options.getString("prompt", true);
+      const prompt = slash.options.getString("prompt", true);
+      const sizeOpt = slash.options.getString("size") ?? "1024x1024";
+      const [w, h] = sizeOpt.split("x").map(Number) as [number, number];
+
       await slash.deferReply();
       try {
-        // ترجمة النص للإنجليزي إذا كان يحتوي على عربي
-        let englishPrompt = arabicPrompt;
-        const hasArabic = /[\u0600-\u06FF]/.test(arabicPrompt);
-        if (hasArabic) {
-          const translation = await openai.chat.completions.create({
-            model: "llama-3.3-70b-versatile",
-            max_tokens: 200,
-            messages: [
-              {
-                role: "system",
-                content: "You are a translator. Translate the user's Arabic image description into a detailed English prompt suitable for AI image generation. Return ONLY the English prompt, nothing else. No explanations, no quotes.",
-              },
-              { role: "user", content: arabicPrompt },
-            ],
-          });
-          englishPrompt = translation.choices[0]?.message?.content?.trim() ?? arabicPrompt;
-        }
-
-        const imageURL = await generateImage(runwareApiKey, englishPrompt, 1024, 1024);
+        const imageURL = await generateImage(runwareApiKey, prompt, w, h);
         const embed = new EmbedBuilder()
           .setColor(0x5865f2)
           .setTitle("🎨 صورتك جاهزة!")
-          .addFields(
-            { name: "📝 طلبك", value: arabicPrompt },
-            { name: "🔤 البرومبت (إنجليزي)", value: englishPrompt },
-          )
+          .setDescription(`**الوصف:** ${prompt}`)
           .setImage(imageURL)
-          .setFooter({ text: "1024×1024 • Powered by Runware.ai" });
+          .setFooter({ text: `الحجم: ${sizeOpt} • Powered by Runware.ai` });
         await slash.editReply({ embeds: [embed] });
       } catch (err) {
         logger.error({ err }, "Error in /image");
