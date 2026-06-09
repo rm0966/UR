@@ -2,6 +2,8 @@ import app from "./app";
 import { logger } from "./lib/logger";
 import { startDiscordBot } from "./bot/yuri";
 import { startKeepalive, onMainServerRestart } from "./keepalive";
+import { registerClient } from "./bot/botController";
+import { isBotEnabled } from "./bot/botState";
 import http from "http";
 import { execSync } from "child_process";
 
@@ -71,4 +73,11 @@ onMainServerRestart(() => {
 });
 
 startMainServer();
-startDiscordBot();
+
+// Only start the bot if it was enabled (persisted state)
+if (isBotEnabled()) {
+  const client = startDiscordBot();
+  registerClient(client);
+} else {
+  logger.info("Bot is disabled via dashboard — skipping startup");
+}
