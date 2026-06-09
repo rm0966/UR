@@ -36,5 +36,14 @@ args = "pnpm --filter @workspace/api-zod run build && pnpm --filter @workspace/a
 waitForPort = 5000
 
 [[ports]]
+localPort = 3000
+externalPort = 3000
+
+[[ports]]
 localPort = 5000
 externalPort = 80
+
+[deployment]
+deploymentTarget = "vm"
+run = ["node", "--enable-source-maps", "artifacts/api-server/dist/index.mjs"]
+build = ["bash", "-c", "pnpm --filter @workspace/api-zod run build && pnpm --filter @workspace/api-server run build"]
