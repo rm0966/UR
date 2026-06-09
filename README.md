@@ -1,4 +1,4 @@
-# رنيم — Arabic AI Discord Bot
+# 〆 𝐔𝐑 — Arabic AI Discord Bot
 
 بوت ديسكورد ذكي باللغة العربية مبني بـ Discord.js + Express + Groq AI
 
