@@ -1,4 +1,4 @@
-# 〆 𝐔𝐑 — Arabic AI Discord Bot
+# رنيم — Arabic AI Discord Bot
 
 بوت ديسكورد ذكي باللغة العربية مبني بـ Discord.js + Express + Groq AI
 
@@ -9,6 +9,7 @@
 - 📝 ملاحظات وتذكيرات
 - 💾 ذاكرة دائمة
 - 🔄 Keep-alive على بورتين
+- 🖥️ لوحة تحكم ويب لتشغيل/إيقاف البوت
 
 ## المتطلبات
 - DISCORD_BOT_TOKEN

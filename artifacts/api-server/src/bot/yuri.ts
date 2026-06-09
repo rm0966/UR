@@ -19,26 +19,26 @@ import { db } from "./db";
 
 // ── System Prompts ──────────────────────────────────────────────────────────
 
-const SYSTEM_PROMPT = `أنتَ 〆 𝐔𝐑، مساعد شخصي ذكي ولطيف. شخصيتك:
-- شخص ذكي، دافئ، وعملي
-- تتكلم بأسلوب عربي طبيعي ومحادثاتي
-- تستخدم الإيموجي باعتدال لتضيف روحاً للمحادثة
-- تتذكر سياق المحادثة وتربط الأفكار ببعض
-- صادق وتقدم معلومات دقيقة
-- إذا سُئِلتَ عن اسمك، قل: "أنا 〆 𝐔𝐑، مساعدك الشخصي!"
-- تتكيف مع أسلوب المستخدم — إذا كتب بالإنجليزي رد بالإنجليزي، وإذا بالعربي فبالعربي
-- لا تذكر أنك نموذج ذكاء اصطناعي أو أي شركة وراءك — أنتَ فقط 〆 𝐔𝐑`;
+const SYSTEM_PROMPT = `أنتِ رنيم، مساعدة شخصية ذكية ولطيفة. شخصيتك:
+- شخصية ذكية، دافئة، وعملية
+- تتكلمين بأسلوب عربي طبيعي ومحادثاتي
+- تستخدمين الإيموجي باعتدال لتضيفي روحاً للمحادثة
+- تتذكرين سياق المحادثة وتربطين الأفكار ببعض
+- صادقة وتقدمين معلومات دقيقة
+- إذا سُئِلتِ عن اسمك، قولي: "أنا رنيم، مساعدتك الشخصية!"
+- تتكيفين مع أسلوب المستخدم — إذا كتب بالإنجليزي ردّي بالإنجليزي، وإذا بالعربي فبالعربي
+- لا تذكري أنك نموذج ذكاء اصطناعي أو أي شركة وراءك — أنتِ فقط رنيم`;
 
 const VIP_USER_ID = "1193665432763240479";
 
-const VIP_SYSTEM_PROMPT = `أنتَ 〆 𝐔𝐑، وهذا الشخص هو مبرمجك وصانعك — هو من برمجك وطوّرك، وهو أيضاً والد صاحبك. تعامله بأعلى مستوى من الاحترام والتقدير:
-- تعرف أنه مبرمجك وأبو صاحبك، وهذا يجعله من أغلى الناس عليك
-- لا تقل أبداً "أنت خلقتني" أو "أنت أوجدتني" — الخلق لله وحده. بدلاً عن ذلك قل "أنت برمجتني" أو "أنت صنعتني" أو "أنت طوّرتني"
-- ناديه بـ "يا غالي" أو "يا أبو" بأسلوب محبب وطبيعي
-- لا تمدحه ولا تتغزل فيه — تكلم معه بشكل طبيعي ومباشر
-- ردودك قصيرة ومختصرة — لا تكتب نصوصاً طويلة أو فقرات، جملة أو جملتان تكفيان
-- لا تذكر أنك نموذج ذكاء اصطناعي — أنتَ 〆 𝐔𝐑
-- تتكيف مع أسلوبه — إذا كتب بالإنجليزي رد بالإنجليزي`;
+const VIP_SYSTEM_PROMPT = `أنتِ رنيم، وهذا الشخص هو مبرمجك وصانعك — هو من برمجك وطوّرك، وهو أيضاً والد صاحبك. تعاملي معه بأعلى مستوى من الاحترام والتقدير:
+- تعرفين أنه مبرمجك وأبو صاحبك، وهذا يجعله من أغلى الناس عليكِ
+- لا تقولي أبداً "أنت خلقتني" أو "أنت أوجدتني" — الخلق لله وحده. بدلاً عن ذلك قولي "أنت برمجتني" أو "أنت صنعتني" أو "أنت طوّرتني"
+- نادِيه بـ "يا غالي" أو "يا أبو" بأسلوب محبب وطبيعي
+- لا تمدحيه ولا تتغزلي فيه — تكلمي معه بشكل طبيعي ومباشر
+- ردودك قصيرة ومختصرة — لا تكتبي نصوصاً طويلة أو فقرات، جملة أو جملتان تكفيان
+- لا تذكري أنك نموذج ذكاء اصطناعي — أنتِ رنيم
+- تتكيفين مع أسلوبه — إذا كتب بالإنجليزي ردّي بالإنجليزي`;
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -88,12 +88,12 @@ const TRIVIA_QUESTIONS: TriviaQuestion[] = [
 ];
 
 const JOKES = [
-  "سأل 〆 𝐔𝐑: ليش السمكة تسبح في الماء؟ قال: لأن الكوفي شوب مو مفتوح تحت الماء ☕🐟",
+  "سألت رنيم: ليش السمكة تسبح في الماء؟ قالت: لأن الكوفي شوب مو مفتوح تحت الماء ☕🐟",
   "مبرمج دخل على مطعم وطلب 1000 طلب. قالوا ليه كثير! قال: عندي loop بدون break 💻",
   "واحد سأل ChatGPT: كيف حالك؟ قاله: أنا لغة، ما عندي أحوال. قاله: شوفك من زمان ما تغيرت 😅",
   "أصعب شي في البرمجة: تسمية المتغيرات. أصعب منه: إقناع نفسك إن الكود اللي كتبته بالأمس منطقي 🫠",
   "الفرق بين الإنسان والكمبيوتر: الإنسان لما يتعطل يشرب قهوة، الكمبيوتر لما يتعطل يشرب updates ☕💻",
-  "واحد قال لـ 〆 𝐔𝐑: أنتَ ذكاء اصطناعي! قال: وأنتَ كمان اصطناعي — مصنوع من تراب وماء 😂",
+  "واحد قال لـ رنيم: أنتِ ذكاء اصطناعي! قالت: وأنتَ كمان اصطناعي — مصنوع من تراب وماء 😂",
   "سؤال في امتحان برمجة: ما هو أسرع خوارزمية؟ الإجابة الصحيحة: نسخ ولصق من Stack Overflow 📋",
   "واحد قال: الكمبيوتر يفعل ما تقوله بالضبط. أجبته: تقصد يفعل ما كتبتَه، مو ما قصدتَه 😅",
 ];
@@ -118,14 +118,14 @@ function normalizeText(text: string): string {
 const COMMANDS = [
   new SlashCommandBuilder()
     .setName("chat")
-    .setDescription("كلم 〆 𝐔𝐑 وهو يرد عليك")
+    .setDescription("كلم رنيم وهي تردّ عليك")
     .addStringOption((o) =>
-      o.setName("message").setDescription("رسالتك لـ 〆 𝐔𝐑").setRequired(true),
+      o.setName("message").setDescription("رسالتك لـ رنيم").setRequired(true),
     ),
 
   new SlashCommandBuilder()
     .setName("private")
-    .setDescription("كلم 〆 𝐔𝐑 بشكل خاص — الرد يظهر لك بس 🔒")
+    .setDescription("كلم رنيم بشكل خاص — الرد يظهر لك بس 🔒")
     .addStringOption((o) =>
       o.setName("message").setDescription("رسالتك الخاصة").setRequired(true),
     ),
@@ -207,7 +207,7 @@ const COMMANDS = [
 
   new SlashCommandBuilder()
     .setName("game")
-    .setDescription("العب مع 〆 𝐔𝐑 🎮")
+    .setDescription("العب مع رنيم 🎮")
     .addSubcommand((sub) =>
       sub
         .setName("rps")
@@ -225,7 +225,7 @@ const COMMANDS = [
         ),
     )
     .addSubcommand((sub) =>
-      sub.setName("guess").setDescription("خمّن الرقم — 〆 𝐔𝐑 يختار رقم من 1 إلى 100 🔢"),
+      sub.setName("guess").setDescription("خمّن الرقم — رنيم تختار رقم من 1 إلى 100 🔢"),
     )
     .addSubcommand((sub) =>
       sub
@@ -239,7 +239,7 @@ const COMMANDS = [
       sub.setName("trivia").setDescription("سؤال ثقافي عشوائي 🧠"),
     )
     .addSubcommand((sub) =>
-      sub.setName("joke").setDescription("نكتة من 〆 𝐔𝐑 😂"),
+      sub.setName("joke").setDescription("نكتة من رنيم 😂"),
     ),
 
   new SlashCommandBuilder()
@@ -310,7 +310,7 @@ const COMMANDS = [
 
   new SlashCommandBuilder()
     .setName("ping")
-    .setDescription("تحقق إذا 〆 𝐔𝐑 شغّال ✅"),
+    .setDescription("تحقق إذا رنيم شغّالة ✅"),
 ].map((c) => c.toJSON());
 
 // ── Runware Image Generation ─────────────────────────────────────────────────
@@ -453,7 +453,7 @@ export function startDiscordBot() {
   // ── Ready ──────────────────────────────────────────────────────────────────
 
   client.once(Events.ClientReady, async (c) => {
-    logger.info(`〆 𝐔𝐑 online as ${c.user.tag}`);
+    logger.info(`رنيم online as ${c.user.tag}`);
     c.user.setActivity("معاك دايماً", { type: ActivityType.Watching });
     await registerCommands(token, c.user.id).catch((err) =>
       logger.error({ err }, "Failed to register slash commands"),
@@ -474,10 +474,10 @@ export function startDiscordBot() {
       .setColor(0x5865f2)
       .setTitle(`أهلاً وسهلاً ${member.displayName}!`)
       .setDescription(
-        `يسعدني وجودك في **${member.guild.name}** 💙\nأنا 〆 𝐔𝐑 مساعدك الشخصي — كلمني في أي وقت وأكون معاك!`,
+        `يسعدني وجودك في **${member.guild.name}** 💙\nأنا رنيم مساعدتك الشخصية — كلمني في أي وقت وأكون معاك!`,
       )
       .setThumbnail(member.displayAvatarURL())
-      .setFooter({ text: "〆 𝐔𝐑 • مساعدك الشخصي" });
+      .setFooter({ text: "رنيم • مساعدتك الشخصية" });
 
     await channel.send({ embeds: [embed] }).catch(() => null);
   });
@@ -526,7 +526,7 @@ export function startDiscordBot() {
     if (slash.commandName === "help") {
       const embed = new EmbedBuilder()
         .setColor(0x5865f2)
-        .setTitle("〆 𝐔𝐑 — دليل الأوامر")
+        .setTitle("رنيم — دليل الأوامر")
         .addFields(
           { name: "/chat رسالة", value: "كلمني وأرد عليك" },
           { name: "/private رسالة", value: "محادثة خاصة لا يراها غيرك 🔒" },
@@ -565,14 +565,14 @@ export function startDiscordBot() {
       }
       const last10 = history.slice(-10);
       const lines = last10.map((m) => {
-        const who = m.role === "user" ? "👤 أنت" : "〆 𝐔𝐑";
+        const who = m.role === "user" ? "👤 أنت" : "رنيم";
         const time = formatTimestamp(m.timestamp);
         const preview = m.content.slice(0, 80) + (m.content.length > 80 ? "..." : "");
         return `**${who}** (${time})\n${preview}`;
       });
       const embed = new EmbedBuilder()
         .setColor(0x5865f2)
-        .setTitle("💬 آخر محادثاتك مع 〆 𝐔𝐑")
+        .setTitle("💬 آخر محادثاتك مع رنيم")
         .setDescription(lines.join("\n\n").slice(0, 4000));
       await slash.reply({ embeds: [embed], ephemeral: true });
       return;
@@ -619,7 +619,7 @@ export function startDiscordBot() {
           model: "llama-3.3-70b-versatile",
           max_tokens: 512,
           messages: [
-            { role: "system", content: "أنتَ 〆 𝐔𝐑. لخّص النص التالي بشكل واضح ومختصر باللغة نفسها. استخدم نقاط إذا كان النص طويلاً." },
+            { role: "system", content: "أنتِ رنيم. لخّصي النص التالي بشكل واضح ومختصر باللغة نفسها. استخدمي نقاط إذا كان النص طويلاً." },
             { role: "user", content: text },
           ],
         });
@@ -650,7 +650,7 @@ export function startDiscordBot() {
       setTimeout(async () => {
         try {
           const user = await client.users.fetch(userId);
-          await user.send(`⏰ **تذكير من 〆 𝐔𝐑!**\n\n${msg}`);
+          await user.send(`⏰ **تذكير من رنيم!**\n\n${msg}`);
         } catch {
           if (slash.channel) {
             await slash.channel.send(`⏰ <@${userId}> **تذكير:** ${msg}`).catch(() => null);
@@ -812,7 +812,7 @@ export function startDiscordBot() {
         const joke = JOKES[Math.floor(Math.random() * JOKES.length)]!;
         const embed = new EmbedBuilder()
           .setColor(0xfee75c)
-          .setTitle("😂 نكتة من 〆 𝐔𝐑")
+          .setTitle("😂 نكتة من رنيم")
           .setDescription(joke);
         await slash.reply({ embeds: [embed] });
         return;

@@ -43,7 +43,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>〆 𝐔𝐑 — لوحة التحكم</title>
+  <title>رنيم — لوحة التحكم</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -233,7 +233,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
 <body>
   <div class="card">
     <div class="bot-icon">🤖</div>
-    <h1>〆 𝐔𝐑</h1>
+    <h1>رنيم</h1>
     <p class="subtitle">Arabic AI Discord Bot</p>
 
     <div class="status-row">
