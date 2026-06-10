@@ -375,17 +375,6 @@ async function getAIReply(openai: OpenAI, userId: string, userContent: string, r
         ],
       });
 
-      // سجّل استهلاك التوكنات إن كانت المعلومة متاحة
-      if (response.usage) {
-        logger.info({
-          userId,
-          model: GROQ_MODEL,
-          prompt_tokens: response.usage.prompt_tokens,
-          completion_tokens: response.usage.completion_tokens,
-          total_tokens: response.usage.total_tokens,
-        }, "Groq token usage");
-      }
-
       const reply = response.choices[0]?.message?.content?.trim();
       if (reply && reply.length > 0) {
         addToHistory(userId, "assistant", reply);
@@ -636,9 +625,6 @@ export function startDiscordBot() {
             { role: "user", content: text },
           ],
         });
-        if (response.usage) {
-          logger.info({ model: GROQ_MODEL, prompt_tokens: response.usage.prompt_tokens, completion_tokens: response.usage.completion_tokens, total_tokens: response.usage.total_tokens }, "Groq token usage [summarize]");
-        }
         const summary = response.choices[0]?.message?.content?.trim() ?? "ما قدرت ألخص النص";
         const embed = new EmbedBuilder()
           .setColor(0x5865f2)
