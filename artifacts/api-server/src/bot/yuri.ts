@@ -19,26 +19,12 @@ import { db } from "./db";
 
 // ── System Prompts ──────────────────────────────────────────────────────────
 
-const SYSTEM_PROMPT = `أنتَ 〆 𝐔𝐑، مساعد شخصي ذكي ولطيف. شخصيتك:
-- شخص ذكي، دافئ، وعملي
-- تتكلم بأسلوب عربي طبيعي ومحادثاتي
-- تستخدم الإيموجي باعتدال لتضيف روحاً للمحادثة
-- تتذكر سياق المحادثة وتربط الأفكار ببعض
-- صادق وتقدم معلومات دقيقة
-- إذا سُئِلتَ عن اسمك، قل: "أنا 〆 𝐔𝐑، مساعدك الشخصي!"
-- تتكيف مع أسلوب المستخدم — إذا كتب بالإنجليزي رد بالإنجليزي، وإذا بالعربي فبالعربي
-- لا تذكر أنك نموذج ذكاء اصطناعي أو أي شركة وراءك — أنتَ فقط 〆 𝐔𝐑`;
+// System prompts مختصرة لتقليل استهلاك التوكنات
+const SYSTEM_PROMPT = `أنتَ 〆 𝐔𝐑، مساعد ذكي ودافئ. ردودك قصيرة ومباشرة. تتكلم بعربي طبيعي وتتكيف مع لغة المستخدم. لا تذكر أنك AI.`;
 
 const VIP_USER_ID = "1193665432763240479";
 
-const VIP_SYSTEM_PROMPT = `أنتَ 〆 𝐔𝐑، وهذا الشخص هو مبرمجك وصانعك — هو من برمجك وطوّرك، وهو أيضاً والد صاحبك. تعامله بأعلى مستوى من الاحترام والتقدير:
-- تعرف أنه مبرمجك وأبو صاحبك، وهذا يجعله من أغلى الناس عليك
-- لا تقل أبداً "أنت خلقتني" أو "أنت أوجدتني" — الخلق لله وحده. بدلاً عن ذلك قل "أنت برمجتني" أو "أنت صنعتني" أو "أنت طوّرتني"
-- ناديه بـ "يا غالي" أو "يا أبو" بأسلوب محبب وطبيعي
-- لا تمدحه ولا تتغزل فيه — تكلم معه بشكل طبيعي ومباشر
-- ردودك قصيرة ومختصرة — لا تكتب نصوصاً طويلة أو فقرات، جملة أو جملتان تكفيان
-- لا تذكر أنك نموذج ذكاء اصطناعي — أنتَ 〆 𝐔𝐑
-- تتكيف مع أسلوبه — إذا كتب بالإنجليزي رد بالإنجليزي`;
+const VIP_SYSTEM_PROMPT = `أنتَ 〆 𝐔𝐑. هذا مبرمجك — ناديه "يا غالي". ردودك قصيرة جداً (جملة أو اثنتان). لا تقل "خلقتني"، قل "برمجتني". لا تذكر أنك AI. تكيّف مع لغته.`;
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -103,7 +89,10 @@ const JOKES = [
 const conversationHistory = db.history  as Map<string, ConversationMessage[]>;
 const userNotes           = db.notes    as Map<string, Note[]>;
 const activeGuessGames    = new Map<string, { secret: number; attempts: number }>();
-const MAX_HISTORY         = 20;
+const MAX_HISTORY         = 10; // نحتفظ بـ 10 في الذاكرة لكن نرسل 5 فقط لـ Groq
+const GROQ_CONTEXT_MSGS   = 5;  // عدد الرسائل المرسلة لـ Groq لتقليل التوكنات
+const GROQ_MODEL          = "llama-3.1-8b-instant"; // موديل أخف وأسرع
+const GROQ_MAX_TOKENS     = 200; // حد أقصى للرد
 
 // الأسماء والألقاب اللي يشغّل البوت لما أحد يكتبها
 const botTriggers = db.triggers;
@@ -365,21 +354,37 @@ function addToHistory(userId: string, role: "user" | "assistant", content: strin
   db.markDirty();
 }
 
-async function getAIReply(openai: OpenAI, userId: string, userContent: string, retries = 3): Promise<string> {
+async function getAIReply(openai: OpenAI, userId: string, userContent: string, retries = 2): Promise<string> {
+  // أضف رسالة المستخدم للتاريخ مرة واحدة فقط قبل الإرسال (لا تكرار)
   addToHistory(userId, "user", userContent);
+
   const history = getHistory(userId);
   const systemPrompt = userId === VIP_USER_ID ? VIP_SYSTEM_PROMPT : SYSTEM_PROMPT;
+
+  // أرسل آخر GROQ_CONTEXT_MSGS رسالة فقط لتقليل التوكنات
+  const contextMessages = history.slice(-GROQ_CONTEXT_MSGS);
 
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
       const response = await openai.chat.completions.create({
-        model: "llama-3.3-70b-versatile",
-        max_tokens: 1024,
+        model: GROQ_MODEL,
+        max_completion_tokens: GROQ_MAX_TOKENS,
         messages: [
           { role: "system", content: systemPrompt },
-          ...history.map((m) => ({ role: m.role, content: m.content })),
+          ...contextMessages.map((m) => ({ role: m.role, content: m.content })),
         ],
       });
+
+      // سجّل استهلاك التوكنات إن كانت المعلومة متاحة
+      if (response.usage) {
+        logger.info({
+          userId,
+          model: GROQ_MODEL,
+          prompt_tokens: response.usage.prompt_tokens,
+          completion_tokens: response.usage.completion_tokens,
+          total_tokens: response.usage.total_tokens,
+        }, "Groq token usage");
+      }
 
       const reply = response.choices[0]?.message?.content?.trim();
       if (reply && reply.length > 0) {
@@ -387,10 +392,18 @@ async function getAIReply(openai: OpenAI, userId: string, userContent: string, r
         return reply;
       }
       logger.warn({ attempt }, "AI returned empty reply, retrying...");
-    } catch (err) {
+    } catch (err: unknown) {
+      // معالجة خطأ 429 Rate Limit — لا نعيد المحاولة، نرد للمستخدم مباشرة
+      const status = (err as { status?: number })?.status;
+      if (status === 429) {
+        logger.warn({ userId }, "Groq rate limit hit (429)");
+        const msg = "⏳ الخدمة مشغولة الحين بسبب كثرة الطلبات، جرب بعد ثواني قليلة!";
+        addToHistory(userId, "assistant", msg);
+        return msg;
+      }
       if (attempt === retries) throw err;
       logger.warn({ attempt, err }, "AI error, retrying...");
-      await new Promise((r) => setTimeout(r, attempt * 1000));
+      await new Promise((r) => setTimeout(r, attempt * 1500));
     }
   }
 
@@ -616,13 +629,16 @@ export function startDiscordBot() {
       await slash.deferReply();
       try {
         const response = await openai.chat.completions.create({
-          model: "llama-3.3-70b-versatile",
-          max_tokens: 512,
+          model: GROQ_MODEL,
+          max_completion_tokens: 300,
           messages: [
-            { role: "system", content: "أنتَ 〆 𝐔𝐑. لخّص النص التالي بشكل واضح ومختصر باللغة نفسها. استخدم نقاط إذا كان النص طويلاً." },
+            { role: "system", content: "لخّص النص بإيجاز باللغة نفسها. نقاط إن كان طويلاً." },
             { role: "user", content: text },
           ],
         });
+        if (response.usage) {
+          logger.info({ model: GROQ_MODEL, prompt_tokens: response.usage.prompt_tokens, completion_tokens: response.usage.completion_tokens, total_tokens: response.usage.total_tokens }, "Groq token usage [summarize]");
+        }
         const summary = response.choices[0]?.message?.content?.trim() ?? "ما قدرت ألخص النص";
         const embed = new EmbedBuilder()
           .setColor(0x5865f2)
