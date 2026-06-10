@@ -53,8 +53,9 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       color: #e6edf3;
       min-height: 100vh;
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       justify-content: center;
+      padding: 32px 16px;
     }
 
     .card {
