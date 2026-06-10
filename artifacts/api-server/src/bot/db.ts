@@ -78,6 +78,21 @@ class BotDatabase {
     this.dirty = true;
   }
 
+  getHistoryStats(): { users: number; usedSlots: number; maxSlots: number; freeSlots: number } {
+    const MAX_PER_USER = 10;
+    let usedSlots = 0;
+    for (const msgs of this.history.values()) usedSlots += msgs.length;
+    const users = this.history.size;
+    const maxSlots = users * MAX_PER_USER;
+    return { users, usedSlots, maxSlots, freeSlots: Math.max(0, maxSlots - usedSlots) };
+  }
+
+  clearAllHistory(): void {
+    this.history.clear();
+    this.markDirty();
+    this.flush();
+  }
+
   flush(): void {
     if (!this.dirty) return;
     writeJson(FILES.history,  Object.fromEntries(this.history));

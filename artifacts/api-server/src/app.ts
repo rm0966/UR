@@ -194,10 +194,24 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       color: #8b949e;
     }
 
+    .btn-danger {
+      background: transparent;
+      color: #f85149;
+      border: 1px solid #f8514955;
+      font-size: 13px;
+      padding: 9px 0;
+      font-weight: 600;
+    }
+
+    .btn-danger:hover:not(:disabled) {
+      background: #f8514915;
+      border-color: #f85149;
+    }
+
     .divider {
       border: none;
       border-top: 1px solid #21262d;
-      margin: 32px 0 20px;
+      margin: 24px 0 20px;
     }
 
     .info-row {
@@ -205,6 +219,74 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       justify-content: space-between;
       font-size: 12px;
       color: #8b949e;
+    }
+
+    .tokens-section {
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin: 20px 0 0;
+      text-align: right;
+    }
+
+    .tokens-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: #8b949e;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .tokens-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .token-stat {
+      background: #161b22;
+      border: 1px solid #21262d;
+      border-radius: 8px;
+      padding: 10px 12px;
+      text-align: center;
+    }
+
+    .token-stat .val {
+      font-size: 22px;
+      font-weight: 700;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+
+    .token-stat .lbl {
+      font-size: 11px;
+      color: #8b949e;
+    }
+
+    .val-used   { color: #f85149; }
+    .val-free   { color: #3fb950; }
+    .val-users  { color: #58a6ff; }
+    .val-max    { color: #8b949e; }
+
+    .bar-wrap {
+      background: #21262d;
+      border-radius: 6px;
+      height: 6px;
+      overflow: hidden;
+      margin-bottom: 14px;
+    }
+
+    .bar-fill {
+      height: 100%;
+      border-radius: 6px;
+      background: linear-gradient(90deg, #3fb950, #f85149);
+      transition: width 0.5s ease;
     }
 
     .toast {
@@ -244,6 +326,34 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
 
     <button class="btn btn-loading" id="toggle-btn" disabled onclick="toggle()">
       ...</button>
+
+    <div class="tokens-section">
+      <div class="tokens-title">💬 ذاكرة المحادثات</div>
+      <div class="tokens-grid">
+        <div class="token-stat">
+          <div class="val val-used" id="tok-used">—</div>
+          <div class="lbl">رسائل مستخدمة</div>
+        </div>
+        <div class="token-stat">
+          <div class="val val-free" id="tok-free">—</div>
+          <div class="lbl">رسائل متاحة</div>
+        </div>
+        <div class="token-stat">
+          <div class="val val-users" id="tok-users">—</div>
+          <div class="lbl">مستخدمين نشطين</div>
+        </div>
+        <div class="token-stat">
+          <div class="val val-max" id="tok-max">—</div>
+          <div class="lbl">سعة كاملة</div>
+        </div>
+      </div>
+      <div class="bar-wrap">
+        <div class="bar-fill" id="tok-bar" style="width:0%"></div>
+      </div>
+      <button class="btn btn-danger" id="clear-btn" onclick="clearHistory()">
+        🗑️ حذف كل المحادثات المحفوظة
+      </button>
+    </div>
 
     <hr class="divider" />
     <div class="info-row">
@@ -306,11 +416,25 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       }
     }
 
+    function updateTokenStats(s) {
+      document.getElementById('tok-used').textContent  = s.usedSlots;
+      document.getElementById('tok-free').textContent  = s.freeSlots;
+      document.getElementById('tok-users').textContent = s.users;
+      document.getElementById('tok-max').textContent   = s.maxSlots || '—';
+      const pct = s.maxSlots > 0 ? Math.round((s.usedSlots / s.maxSlots) * 100) : 0;
+      document.getElementById('tok-bar').style.width = pct + '%';
+    }
+
     async function fetchStatus() {
       try {
-        const res = await fetch('/api/bot/status');
-        const data = await res.json();
+        const [statusRes, statsRes] = await Promise.all([
+          fetch('/api/bot/status'),
+          fetch('/api/bot/history-stats'),
+        ]);
+        const data  = await statusRes.json();
+        const stats = await statsRes.json();
         updateUI(data);
+        updateTokenStats(stats);
       } catch {
         document.getElementById('dot').className = 'dot loading';
         document.getElementById('status-text').textContent = 'تعذّر الاتصال';
@@ -347,6 +471,23 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
         busy = false;
         fetchStatus();
       }, 2500);
+    }
+
+    async function clearHistory() {
+      if (!confirm('تأكيد: سيتم حذف جميع المحادثات المحفوظة لكل المستخدمين. هل تريد المتابعة؟')) return;
+      const btn = document.getElementById('clear-btn');
+      btn.disabled = true;
+      btn.textContent = '⏳ جاري الحذف...';
+      try {
+        await fetch('/api/bot/history', { method: 'DELETE' });
+        showToast('🗑️ تم حذف جميع المحادثات بنجاح');
+        await fetchStatus();
+      } catch {
+        showToast('❌ حدث خطأ أثناء الحذف');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '🗑️ حذف كل المحادثات المحفوظة';
+      }
     }
 
     fetchStatus();
