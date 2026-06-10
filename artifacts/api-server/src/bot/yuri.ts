@@ -93,9 +93,24 @@ const MAX_HISTORY         = 10; // نحتفظ بـ 10 في الذاكرة لكن
 const GROQ_CONTEXT_MSGS   = 5;  // عدد الرسائل المرسلة لـ Groq لتقليل التوكنات
 const GROQ_MODEL          = "llama-3.1-8b-instant"; // موديل أخف وأسرع
 const GROQ_MAX_TOKENS     = 200; // حد أقصى للرد
+const COOLDOWN_MS         = 5_000; // 5 ثواني بين كل طلب AI لكل مستخدم
 
 // الأسماء والألقاب اللي يشغّل البوت لما أحد يكتبها
 const botTriggers = db.triggers;
+
+// ── Cooldown ─────────────────────────────────────────────────────────────────
+
+const userCooldowns = new Map<string, number>();
+
+function checkCooldown(userId: string): number {
+  const last = userCooldowns.get(userId) ?? 0;
+  const remaining = COOLDOWN_MS - (Date.now() - last);
+  return remaining > 0 ? Math.ceil(remaining / 1000) : 0;
+}
+
+function setCooldown(userId: string): void {
+  userCooldowns.set(userId, Date.now());
+}
 
 // Normalize Unicode math/bold/italic chars to ASCII (e.g. 𝐔𝐑 → ur)
 function normalizeText(text: string): string {
@@ -501,7 +516,14 @@ export function startDiscordBot() {
     }
     userContent = userContent.trim() || "أهلاً";
 
+    const wait = checkCooldown(message.author.id);
+    if (wait > 0) {
+      await message.reply(`⏱️ تعبتني! انتظر **${wait}** ثانية قبل ما تكلمني مرة ثانية.`).catch(() => null);
+      return;
+    }
+
     try {
+      setCooldown(message.author.id);
       await message.channel.sendTyping();
       const reply = await getAIReply(openai, message.author.id, userContent);
       for (const chunk of splitMessage(reply)) await message.reply(chunk);
@@ -583,7 +605,13 @@ export function startDiscordBot() {
     // /chat
     if (slash.commandName === "chat") {
       const userContent = slash.options.getString("message", true);
+      const wait = checkCooldown(userId);
+      if (wait > 0) {
+        await slash.reply({ content: `⏱️ تعبتني! انتظر **${wait}** ثانية قبل ما تكلمني مرة ثانية.`, ephemeral: true });
+        return;
+      }
       await slash.deferReply();
+      setCooldown(userId);
       try {
         const reply = await getAIReply(openai, userId, userContent);
         const chunks = splitMessage(reply);
@@ -599,7 +627,13 @@ export function startDiscordBot() {
     // /private
     if (slash.commandName === "private") {
       const userContent = slash.options.getString("message", true);
+      const waitP = checkCooldown(userId);
+      if (waitP > 0) {
+        await slash.reply({ content: `⏱️ تعبتني! انتظر **${waitP}** ثانية قبل ما تكلمني مرة ثانية.`, ephemeral: true });
+        return;
+      }
       await slash.deferReply({ ephemeral: true });
+      setCooldown(userId);
       try {
         const reply = await getAIReply(openai, userId, userContent);
         const chunks = splitMessage(reply);
