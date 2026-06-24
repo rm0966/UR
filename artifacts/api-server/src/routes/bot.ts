@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { getBotStatus, startBot, stopBot } from "../bot/botController";
 import { db } from "../bot/db";
+import { getCommandStates, toggleCommand } from "../bot/commandState";
 
 const router: IRouter = Router();
 
@@ -37,6 +38,16 @@ router.delete("/bot/history", (_req, res) => {
   } catch (err) {
     res.status(500).json({ success: false, message: String(err) });
   }
+});
+
+router.get("/bot/commands", (_req, res) => {
+  res.json(getCommandStates());
+});
+
+router.post("/bot/commands/:name/toggle", (req, res) => {
+  const { name } = req.params;
+  const enabled = toggleCommand(name);
+  res.json({ success: true, name, enabled });
 });
 
 export default router;

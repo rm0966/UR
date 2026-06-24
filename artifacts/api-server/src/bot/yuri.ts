@@ -16,6 +16,7 @@ import {
 import OpenAI from "openai";
 import { logger } from "../lib/logger";
 import { db } from "./db";
+import { isCommandEnabled } from "./commandState";
 
 // ── System Prompts ──────────────────────────────────────────────────────────
 
@@ -539,6 +540,11 @@ export function startDiscordBot() {
     if (interaction.type !== InteractionType.ApplicationCommand) return;
     const slash = interaction as ChatInputCommandInteraction;
     const userId = slash.user.id;
+
+    if (!isCommandEnabled(slash.commandName)) {
+      await slash.reply({ content: "⚠️ هذا الأمر معطّل حالياً.", ephemeral: true });
+      return;
+    }
 
     // /ping
     if (slash.commandName === "ping") {

@@ -29,6 +29,8 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+app.get("/healthz", (_req, res) => res.json({ status: "ok" }));
+
 app.get("/", (_req, res) => {
   res.setHeader("Content-Type", "text/html; charset=utf-8");
   res.send(DASHBOARD_HTML);
@@ -37,6 +39,11 @@ app.get("/", (_req, res) => {
 app.get("/editor", (_req, res) => {
   res.setHeader("Content-Type", "text/html; charset=utf-8");
   res.send(EDITOR_HTML);
+});
+
+app.get("/commands", (_req, res) => {
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  res.send(COMMANDS_HTML);
 });
 
 app.use("/api", router);
@@ -367,9 +374,14 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       <span id="last-check">—</span>
     </div>
 
-    <a href="/editor" style="display:block;margin-top:18px;text-align:center;font-size:13px;color:#58a6ff;text-decoration:none;letter-spacing:0.3px;">
-      ✏️ محرر الكود الذكي ←
-    </a>
+    <div style="display:flex;gap:10px;margin-top:18px;">
+      <a href="/commands" style="flex:1;display:block;text-align:center;font-size:13px;color:#58a6ff;text-decoration:none;background:#161b22;border:1px solid #30363d;border-radius:8px;padding:9px 0;">
+        ⚡ الأوامر
+      </a>
+      <a href="/editor" style="flex:1;display:block;text-align:center;font-size:13px;color:#58a6ff;text-decoration:none;background:#161b22;border:1px solid #30363d;border-radius:8px;padding:9px 0;">
+        ✏️ محرر الكود
+      </a>
+    </div>
   </div>
 
   <div class="toast" id="toast"></div>
@@ -746,6 +758,21 @@ const EDITOR_HTML = `<!DOCTYPE html>
     }
     .send-btn:hover:not(:disabled) { background: #388bfd; transform: translateY(-1px); }
     .send-btn:disabled { opacity: .45; cursor: not-allowed; }
+
+    @media (max-width: 640px) {
+      .sidebar { display: none; }
+      .layout { height: calc(100vh - 49px); }
+      header { padding: 12px 16px; }
+      .header-title { font-size: 14px; }
+      .steps-area { padding: 14px 14px; }
+      .input-bar { padding: 10px 12px; gap: 8px; }
+      textarea#request { font-size: 14px; }
+      .send-btn { width: 42px; height: 42px; font-size: 16px; }
+      .step-text { font-size: 13px; }
+      .empty-icon { font-size: 36px; }
+      .empty-text { font-size: 13px; }
+      .example-chip { font-size: 11px; padding: 5px 11px; }
+    }
   </style>
 </head>
 <body>
@@ -956,6 +983,128 @@ const EDITOR_HTML = `<!DOCTYPE html>
     }
 
     loadFiles();
+  </script>
+</body>
+</html>`;
+
+const COMMANDS_HTML = `<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>〆 𝐔𝐑 — الأوامر</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+      background: #0d1117; color: #e6edf3;
+      min-height: 100vh; padding: 24px 16px;
+    }
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 24px; max-width: 560px; margin-inline: auto;
+    }
+    .header-title { font-size: 18px; font-weight: 700; color: #f0f6fc; }
+    .back-link { font-size: 13px; color: #58a6ff; text-decoration: none; }
+    .back-link:hover { text-decoration: underline; }
+    .card {
+      background: #161b22; border: 1px solid #30363d;
+      border-radius: 14px; max-width: 560px; margin: 0 auto;
+      overflow: hidden;
+    }
+    .cmd-row {
+      display: flex; align-items: center; gap: 14px;
+      padding: 14px 20px; border-bottom: 1px solid #21262d;
+      transition: background .15s;
+    }
+    .cmd-row:last-child { border-bottom: none; }
+    .cmd-emoji { font-size: 20px; flex-shrink: 0; }
+    .cmd-info { flex: 1; min-width: 0; }
+    .cmd-name { font-size: 14px; font-weight: 700; color: #e6edf3; font-family: monospace; }
+    .cmd-desc { font-size: 12px; color: #8b949e; margin-top: 2px; }
+    /* toggle switch */
+    .toggle { position: relative; width: 44px; height: 24px; flex-shrink: 0; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .slider {
+      position: absolute; inset: 0; background: #30363d;
+      border-radius: 24px; cursor: pointer; transition: .3s;
+    }
+    .slider::before {
+      content: ''; position: absolute;
+      width: 18px; height: 18px; left: 3px; top: 3px;
+      background: #8b949e; border-radius: 50%; transition: .3s;
+    }
+    .toggle input:checked + .slider { background: #238636; }
+    .toggle input:checked + .slider::before { transform: translateX(20px); background: #fff; }
+    .loading-text { padding: 24px; text-align: center; color: #8b949e; font-size: 14px; }
+    .toast {
+      position: fixed; bottom: 20px; left: 50%;
+      transform: translateX(-50%) translateY(60px);
+      background: #21262d; border: 1px solid #30363d;
+      color: #e6edf3; padding: 10px 20px;
+      border-radius: 8px; font-size: 13px;
+      opacity: 0; transition: all .3s; pointer-events: none;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-title">⚡ إدارة الأوامر</div>
+    <a class="back-link" href="/">→ لوحة التحكم</a>
+  </header>
+
+  <div class="card" id="cmd-list">
+    <div class="loading-text">جاري التحميل...</div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2500);
+    }
+
+    async function loadCommands() {
+      const res = await fetch('/api/bot/commands');
+      const cmds = await res.json();
+      const list = document.getElementById('cmd-list');
+      list.innerHTML = '';
+      cmds.forEach(cmd => {
+        const row = document.createElement('div');
+        row.className = 'cmd-row';
+        row.innerHTML =
+          '<div class="cmd-emoji">' + cmd.emoji + '</div>' +
+          '<div class="cmd-info">' +
+            '<div class="cmd-name">/' + cmd.name + '</div>' +
+            '<div class="cmd-desc">' + cmd.description + '</div>' +
+          '</div>' +
+          '<label class="toggle">' +
+            '<input type="checkbox" ' + (cmd.enabled ? 'checked' : '') + ' onchange="toggle(\'' + cmd.name + '\', this)" />' +
+            '<span class="slider"></span>' +
+          '</label>';
+        list.appendChild(row);
+      });
+    }
+
+    async function toggle(name, el) {
+      el.disabled = true;
+      try {
+        const res = await fetch('/api/bot/commands/' + name + '/toggle', { method: 'POST' });
+        const data = await res.json();
+        el.checked = data.enabled;
+        showToast((data.enabled ? '✅ تم تفعيل' : '⛔ تم تعطيل') + ' /' + name);
+      } catch {
+        showToast('❌ حدث خطأ');
+        el.checked = !el.checked;
+      }
+      el.disabled = false;
+    }
+
+    loadCommands();
   </script>
 </body>
 </html>`;
