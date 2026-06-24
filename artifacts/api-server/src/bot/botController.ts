@@ -39,6 +39,14 @@ export function stopBot(): void {
   logger.info("Bot stopped via dashboard");
 }
 
+export async function sendToChannel(channelId: string, content: string): Promise<void> {
+  if (!activeClient?.isReady()) throw new Error("البوت غير متصل حالياً");
+  const channel = await activeClient.channels.fetch(channelId);
+  if (!channel) throw new Error("لم يتم العثور على القناة — تأكد من صحة الـ ID");
+  if (!channel.isTextBased()) throw new Error("هذه القناة لا تدعم إرسال الرسائل النصية");
+  await (channel as import("discord.js").TextChannel).send(content);
+}
+
 export async function startBot(): Promise<void> {
   if (activeClient?.isReady()) {
     setBotEnabled(true);

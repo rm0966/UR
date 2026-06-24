@@ -46,6 +46,11 @@ app.get("/commands", (_req, res) => {
   res.send(COMMANDS_HTML);
 });
 
+app.get("/templates", (_req, res) => {
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  res.send(TEMPLATES_HTML);
+});
+
 app.use("/api", router);
 
 export default app;
@@ -374,11 +379,14 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       <span id="last-check">—</span>
     </div>
 
-    <div style="display:flex;gap:10px;margin-top:18px;">
-      <a href="/commands" style="flex:1;display:block;text-align:center;font-size:13px;color:#58a6ff;text-decoration:none;background:#161b22;border:1px solid #30363d;border-radius:8px;padding:9px 0;">
+    <div style="display:flex;gap:10px;margin-top:18px;flex-wrap:wrap;">
+      <a href="/commands" style="flex:1;min-width:120px;display:block;text-align:center;font-size:13px;color:#58a6ff;text-decoration:none;background:#161b22;border:1px solid #30363d;border-radius:8px;padding:9px 0;">
         ⚡ الأوامر
       </a>
-      <a href="/editor" style="flex:1;display:block;text-align:center;font-size:13px;color:#58a6ff;text-decoration:none;background:#161b22;border:1px solid #30363d;border-radius:8px;padding:9px 0;">
+      <a href="/templates" style="flex:1;min-width:120px;display:block;text-align:center;font-size:13px;color:#58a6ff;text-decoration:none;background:#161b22;border:1px solid #30363d;border-radius:8px;padding:9px 0;">
+        📨 القوالب
+      </a>
+      <a href="/editor" style="flex:1;min-width:120px;display:block;text-align:center;font-size:13px;color:#58a6ff;text-decoration:none;background:#161b22;border:1px solid #30363d;border-radius:8px;padding:9px 0;">
         ✏️ محرر الكود
       </a>
     </div>
@@ -1105,6 +1113,329 @@ const COMMANDS_HTML = `<!DOCTYPE html>
     }
 
     loadCommands();
+  </script>
+</body>
+</html>`;
+
+const TEMPLATES_HTML = `<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>📨 القوالب — 〆 UR</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0d1117; color: #e6edf3; min-height: 100vh; }
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 24px; background: #161b22; border-bottom: 1px solid #30363d;
+      position: sticky; top: 0; z-index: 10;
+    }
+    .header-title { font-size: 16px; font-weight: 700; }
+    .back-link { font-size: 13px; color: #58a6ff; text-decoration: none; }
+    .back-link:hover { text-decoration: underline; }
+
+    .page { max-width: 760px; margin: 0 auto; padding: 28px 20px; }
+
+    /* create form */
+    .create-card {
+      background: #161b22; border: 1px solid #30363d; border-radius: 12px;
+      padding: 20px; margin-bottom: 28px;
+    }
+    .create-card h2 { font-size: 14px; color: #8b949e; margin-bottom: 16px; }
+    .field { margin-bottom: 12px; }
+    .field label { display: block; font-size: 12px; color: #8b949e; margin-bottom: 5px; }
+    .field input, .field textarea {
+      width: 100%; background: #0d1117; border: 1px solid #30363d; border-radius: 8px;
+      color: #e6edf3; font-size: 14px; padding: 9px 12px; outline: none;
+      font-family: inherit; resize: none;
+      transition: border-color .2s;
+    }
+    .field input:focus, .field textarea:focus { border-color: #58a6ff; }
+    .field textarea { min-height: 90px; }
+    .hint { font-size: 11px; color: #6e7681; margin-top: 4px; }
+    .create-btn {
+      width: 100%; padding: 10px; background: #238636; color: #fff;
+      border: none; border-radius: 8px; font-size: 14px; font-weight: 600;
+      cursor: pointer; transition: background .2s;
+    }
+    .create-btn:hover { background: #2ea043; }
+    .create-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+    /* list */
+    .list-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .list-title { font-size: 15px; font-weight: 700; }
+    .count-badge {
+      background: #21262d; border: 1px solid #30363d; border-radius: 20px;
+      font-size: 12px; color: #8b949e; padding: 2px 10px;
+    }
+    .empty {
+      text-align: center; padding: 48px 20px; color: #6e7681;
+      background: #161b22; border: 1px dashed #30363d; border-radius: 12px;
+    }
+    .empty-icon { font-size: 36px; margin-bottom: 10px; }
+    .empty-text { font-size: 13px; }
+
+    .tpl-card {
+      background: #161b22; border: 1px solid #30363d; border-radius: 12px;
+      padding: 16px 18px; margin-bottom: 12px;
+      transition: border-color .2s;
+    }
+    .tpl-card:hover { border-color: #58a6ff44; }
+    .tpl-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+    .tpl-name { font-size: 15px; font-weight: 700; }
+    .tpl-channel {
+      font-size: 11px; color: #8b949e; background: #21262d;
+      border: 1px solid #30363d; border-radius: 6px; padding: 2px 8px;
+      font-family: monospace; white-space: nowrap;
+    }
+    .tpl-content {
+      font-size: 13px; color: #8b949e; margin: 10px 0;
+      white-space: pre-wrap; word-break: break-word;
+      max-height: 80px; overflow: hidden;
+      border-right: 3px solid #30363d; padding-right: 10px;
+      line-height: 1.6;
+    }
+    .tpl-content.expanded { max-height: none; }
+    .expand-btn { font-size: 11px; color: #58a6ff; background: none; border: none; cursor: pointer; padding: 0; }
+    .tpl-meta { font-size: 11px; color: #6e7681; margin-bottom: 10px; }
+    .tpl-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .btn-send {
+      background: #1f6feb; color: #fff; border: none; border-radius: 7px;
+      font-size: 13px; padding: 7px 16px; cursor: pointer; font-weight: 600;
+      transition: background .2s;
+    }
+    .btn-send:hover { background: #388bfd; }
+    .btn-send:disabled { opacity: .5; cursor: not-allowed; }
+    .btn-edit {
+      background: #21262d; color: #e6edf3; border: 1px solid #30363d; border-radius: 7px;
+      font-size: 13px; padding: 7px 14px; cursor: pointer;
+      transition: background .2s;
+    }
+    .btn-edit:hover { background: #30363d; }
+    .btn-del {
+      background: none; color: #f85149; border: 1px solid #f8514933; border-radius: 7px;
+      font-size: 13px; padding: 7px 14px; cursor: pointer;
+      transition: background .2s;
+    }
+    .btn-del:hover { background: #f8514911; }
+
+    /* edit inline form */
+    .edit-form { margin-top: 12px; display: none; border-top: 1px solid #30363d; padding-top: 14px; }
+    .edit-form.open { display: block; }
+    .edit-row { display: flex; gap: 8px; }
+    .edit-row input { flex: 1; }
+    .save-btn {
+      background: #238636; color: #fff; border: none; border-radius: 7px;
+      font-size: 13px; padding: 7px 14px; cursor: pointer; font-weight: 600;
+    }
+    .cancel-btn {
+      background: #21262d; color: #e6edf3; border: 1px solid #30363d; border-radius: 7px;
+      font-size: 13px; padding: 7px 14px; cursor: pointer;
+    }
+
+    .toast {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      background: #1f2937; color: #e6edf3; border: 1px solid #30363d;
+      border-radius: 10px; padding: 10px 20px; font-size: 13px;
+      opacity: 0; transition: opacity .3s; pointer-events: none; z-index: 999;
+      white-space: nowrap;
+    }
+    .toast.show { opacity: 1; }
+
+    @media (max-width: 600px) {
+      header { padding: 12px 16px; }
+      .header-title { font-size: 14px; }
+      .page { padding: 18px 14px; }
+      .tpl-top { flex-direction: column; gap: 6px; }
+      .tpl-actions { gap: 6px; }
+      .btn-send, .btn-edit, .btn-del { flex: 1; text-align: center; }
+      .edit-row { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-title">📨 قوالب الرسائل</div>
+    <a class="back-link" href="/">→ لوحة التحكم</a>
+  </header>
+
+  <div class="page">
+    <div class="create-card">
+      <h2>➕ قالب جديد</h2>
+      <div class="field">
+        <label>اسم القالب</label>
+        <input type="text" id="new-name" placeholder="مثال: رسالة الترحيب" maxlength="60" />
+      </div>
+      <div class="field">
+        <label>نص الرسالة</label>
+        <textarea id="new-content" placeholder="اكتب نص الرسالة هنا..."></textarea>
+      </div>
+      <div class="field">
+        <label>ID القناة (Channel ID)</label>
+        <input type="text" id="new-channel" placeholder="مثال: 1234567890123456789" />
+        <div class="hint">🔍 كيف تعرف الـ ID؟ فعّل Developer Mode في Discord ثم انقر يمين على القناة واختر Copy Channel ID</div>
+      </div>
+      <button class="create-btn" id="create-btn" onclick="createTemplate()">إنشاء القالب</button>
+    </div>
+
+    <div class="list-header">
+      <span class="list-title">القوالب المحفوظة</span>
+      <span class="count-badge" id="count">0</span>
+    </div>
+    <div id="list"></div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    let templates = [];
+
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2800);
+    }
+
+    function timeAgo(ms) {
+      const diff = Date.now() - ms;
+      const m = Math.floor(diff / 60000);
+      if (m < 1) return 'الآن';
+      if (m < 60) return 'منذ ' + m + ' دقيقة';
+      const h = Math.floor(m / 60);
+      if (h < 24) return 'منذ ' + h + ' ساعة';
+      return 'منذ ' + Math.floor(h / 24) + ' يوم';
+    }
+
+    function toggleContent(id) {
+      const el = document.getElementById('content-' + id);
+      const btn = document.getElementById('expand-' + id);
+      el.classList.toggle('expanded');
+      btn.textContent = el.classList.contains('expanded') ? '▲ أقل' : '▼ أكثر';
+    }
+
+    function toggleEdit(id) {
+      const form = document.getElementById('edit-form-' + id);
+      form.classList.toggle('open');
+    }
+
+    async function loadTemplates() {
+      const res = await fetch('/api/templates');
+      templates = await res.json();
+      render();
+    }
+
+    function render() {
+      document.getElementById('count').textContent = templates.length;
+      const list = document.getElementById('list');
+      if (!templates.length) {
+        list.innerHTML = '<div class="empty"><div class="empty-icon">📭</div><div class="empty-text">لا توجد قوالب بعد — أنشئ أول قالب من الفورم أعلاه</div></div>';
+        return;
+      }
+      list.innerHTML = templates.map(t => {
+        const needExpand = t.content.length > 120;
+        return \`
+          <div class="tpl-card" id="card-\${t.id}">
+            <div class="tpl-top">
+              <span class="tpl-name">\${esc(t.name)}</span>
+              <span class="tpl-channel"># \${esc(t.channelId)}</span>
+            </div>
+            <div class="tpl-content \${needExpand ? '' : 'expanded'}" id="content-\${t.id}">\${esc(t.content)}</div>
+            \${needExpand ? \`<button class="expand-btn" id="expand-\${t.id}" onclick="toggleContent('\${t.id}')">▼ أكثر</button>\` : ''}
+            <div class="tpl-meta">
+              أُنشئ \${timeAgo(t.createdAt)}
+              \${t.lastSentAt ? ' · آخر إرسال ' + timeAgo(t.lastSentAt) : ''}
+            </div>
+            <div class="tpl-actions">
+              <button class="btn-send" id="send-\${t.id}" onclick="sendTemplate('\${t.id}')">📤 إرسال الآن</button>
+              <button class="btn-edit" onclick="toggleEdit('\${t.id}')">✏️ تعديل</button>
+              <button class="btn-del" onclick="deleteTemplate('\${t.id}')">🗑️ حذف</button>
+            </div>
+            <div class="edit-form" id="edit-form-\${t.id}">
+              <div class="field"><label>الاسم</label><input id="edit-name-\${t.id}" value="\${esc(t.name)}" /></div>
+              <div class="field"><label>نص الرسالة</label><textarea id="edit-content-\${t.id}">\${esc(t.content)}</textarea></div>
+              <div class="field"><label>ID القناة</label><input id="edit-channel-\${t.id}" value="\${esc(t.channelId)}" /></div>
+              <div class="edit-row" style="margin-top:8px;">
+                <button class="save-btn" onclick="saveEdit('\${t.id}')">💾 حفظ</button>
+                <button class="cancel-btn" onclick="toggleEdit('\${t.id}')">إلغاء</button>
+              </div>
+            </div>
+          </div>\`;
+      }).join('');
+    }
+
+    function esc(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    async function createTemplate() {
+      const name    = document.getElementById('new-name').value.trim();
+      const content = document.getElementById('new-content').value.trim();
+      const channel = document.getElementById('new-channel').value.trim();
+      if (!name || !content || !channel) { showToast('❌ يرجى ملء جميع الحقول'); return; }
+      const btn = document.getElementById('create-btn');
+      btn.disabled = true;
+      try {
+        const res = await fetch('/api/templates', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, content, channelId: channel }),
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.message);
+        document.getElementById('new-name').value = '';
+        document.getElementById('new-content').value = '';
+        document.getElementById('new-channel').value = '';
+        showToast('✅ تم إنشاء القالب بنجاح');
+        await loadTemplates();
+      } catch (e) {
+        showToast('❌ ' + e.message);
+      }
+      btn.disabled = false;
+    }
+
+    async function sendTemplate(id) {
+      const btn = document.getElementById('send-' + id);
+      btn.disabled = true;
+      btn.textContent = '⏳ جاري الإرسال...';
+      try {
+        const res = await fetch('/api/templates/' + id + '/send', { method: 'POST' });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.message);
+        showToast('✅ تم الإرسال بنجاح!');
+        await loadTemplates();
+      } catch (e) {
+        showToast('❌ ' + e.message);
+        btn.disabled = false;
+        btn.textContent = '📤 إرسال الآن';
+      }
+    }
+
+    async function deleteTemplate(id) {
+      if (!confirm('هل تريد حذف هذا القالب؟')) return;
+      await fetch('/api/templates/' + id, { method: 'DELETE' });
+      showToast('🗑️ تم الحذف');
+      await loadTemplates();
+    }
+
+    async function saveEdit(id) {
+      const name    = document.getElementById('edit-name-'    + id).value.trim();
+      const content = document.getElementById('edit-content-' + id).value.trim();
+      const channel = document.getElementById('edit-channel-' + id).value.trim();
+      if (!name || !content || !channel) { showToast('❌ لا تترك حقولاً فارغة'); return; }
+      const res = await fetch('/api/templates/' + id, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, content, channelId: channel }),
+      });
+      const data = await res.json();
+      if (!data.success) { showToast('❌ ' + data.message); return; }
+      showToast('💾 تم الحفظ');
+      await loadTemplates();
+    }
+
+    loadTemplates();
   </script>
 </body>
 </html>`;
