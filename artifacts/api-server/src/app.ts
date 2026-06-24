@@ -34,6 +34,11 @@ app.get("/", (_req, res) => {
   res.send(DASHBOARD_HTML);
 });
 
+app.get("/editor", (_req, res) => {
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  res.send(EDITOR_HTML);
+});
+
 app.use("/api", router);
 
 export default app;
@@ -361,6 +366,10 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       <span id="bot-tag">—</span>
       <span id="last-check">—</span>
     </div>
+
+    <a href="/editor" style="display:block;margin-top:18px;text-align:center;font-size:13px;color:#58a6ff;text-decoration:none;letter-spacing:0.3px;">
+      ✏️ محرر الكود الذكي ←
+    </a>
   </div>
 
   <div class="toast" id="toast"></div>
@@ -493,6 +502,383 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
 
     fetchStatus();
     setInterval(fetchStatus, 5000);
+  </script>
+</body>
+</html>`;
+
+const EDITOR_HTML = `<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>〆 𝐔𝐑 — محرر الكود</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+      background: #0d1117;
+      color: #e6edf3;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background: #161b22;
+      border-bottom: 1px solid #30363d;
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    .header-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #f0f6fc;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .back-link {
+      font-size: 13px;
+      color: #58a6ff;
+      text-decoration: none;
+    }
+
+    .back-link:hover { text-decoration: underline; }
+
+    .layout {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+      height: calc(100vh - 53px);
+    }
+
+    /* ── Sidebar ─────────────────────────── */
+    .sidebar {
+      width: 200px;
+      background: #161b22;
+      border-left: 1px solid #30363d;
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+    }
+
+    .sidebar-title {
+      padding: 12px 16px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #8b949e;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid #21262d;
+    }
+
+    .file-item {
+      padding: 10px 16px;
+      font-size: 13px;
+      color: #8b949e;
+      cursor: pointer;
+      border-bottom: 1px solid #21262d;
+      transition: background 0.15s, color 0.15s;
+      font-family: 'Cascadia Code', 'Fira Code', monospace;
+    }
+
+    .file-item:hover { background: #21262d; color: #e6edf3; }
+    .file-item.active { background: #1f3558; color: #58a6ff; border-right: 2px solid #58a6ff; }
+
+    /* ── Main ────────────────────────────── */
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .code-area {
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+    }
+
+    textarea#code-view {
+      width: 100%;
+      height: 100%;
+      background: #0d1117;
+      color: #c9d1d9;
+      border: none;
+      outline: none;
+      padding: 16px 20px;
+      font-family: 'Cascadia Code', 'Fira Code', 'Courier New', monospace;
+      font-size: 13px;
+      line-height: 1.6;
+      resize: none;
+      direction: ltr;
+      text-align: left;
+    }
+
+    /* ── Bottom Panel ─────────────────────── */
+    .bottom-panel {
+      background: #161b22;
+      border-top: 1px solid #30363d;
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+
+    .instruction-row {
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+    }
+
+    .instruction-wrap {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .instruction-label {
+      font-size: 12px;
+      color: #8b949e;
+      font-weight: 600;
+    }
+
+    textarea#instruction {
+      width: 100%;
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      color: #e6edf3;
+      padding: 10px 14px;
+      font-size: 14px;
+      font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+      resize: none;
+      outline: none;
+      height: 64px;
+      transition: border-color 0.2s;
+    }
+
+    textarea#instruction:focus { border-color: #58a6ff; }
+
+    .apply-btn {
+      background: #1f6feb;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 0 24px;
+      height: 64px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .apply-btn:hover:not(:disabled) { background: #388bfd; transform: translateY(-1px); }
+    .apply-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ── Status bar ───────────────────────── */
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      min-height: 20px;
+    }
+
+    .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #30363d;
+      flex-shrink: 0;
+    }
+
+    .status-dot.ok   { background: #3fb950; box-shadow: 0 0 6px #3fb95088; }
+    .status-dot.err  { background: #f85149; box-shadow: 0 0 6px #f8514988; }
+    .status-dot.busy { background: #d29922; animation: pulse 1s infinite; }
+
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+    .status-msg { color: #8b949e; flex: 1; }
+    .status-msg.ok  { color: #3fb950; }
+    .status-msg.err { color: #f85149; white-space: pre-wrap; }
+
+    .no-file {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #30363d;
+      font-size: 15px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-title">✏️ محرر الكود الذكي — 〆 𝐔𝐑</div>
+    <a class="back-link" href="/">→ لوحة التحكم</a>
+  </header>
+
+  <div class="layout">
+    <div class="main">
+      <div class="code-area" id="code-area">
+        <div class="no-file" id="no-file">اختر ملفاً من القائمة لعرضه</div>
+        <textarea id="code-view" spellcheck="false" style="display:none"></textarea>
+      </div>
+
+      <div class="bottom-panel">
+        <div class="status-bar">
+          <div class="status-dot" id="sdot"></div>
+          <span class="status-msg" id="smsg">اختر ملفاً ثم اكتب التعديل المطلوب</span>
+        </div>
+        <div class="instruction-row">
+          <div class="instruction-wrap">
+            <div class="instruction-label">التعديل المطلوب (بالعربي أو الإنجليزي)</div>
+            <textarea id="instruction" placeholder="مثال: أضف رسالة ترحيب جديدة عند تشغيل البوت..." disabled></textarea>
+          </div>
+          <button class="apply-btn" id="apply-btn" onclick="applyEdit()" disabled>
+            ⚡ طبّق
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar">
+      <div class="sidebar-title">الملفات</div>
+      <div id="file-list"><div style="padding:12px 16px;font-size:12px;color:#8b949e;">جاري التحميل...</div></div>
+    </div>
+  </div>
+
+  <script>
+    let files = [];
+    let selectedPath = null;
+    let busy = false;
+
+    function setStatus(type, msg) {
+      const dot = document.getElementById('sdot');
+      const sm  = document.getElementById('smsg');
+      dot.className = 'status-dot ' + (type || '');
+      sm.className  = 'status-msg '  + (type || '');
+      sm.textContent = msg;
+    }
+
+    async function loadFiles() {
+      try {
+        const res = await fetch('/api/code/files');
+        files = await res.json();
+        const list = document.getElementById('file-list');
+        list.innerHTML = '';
+        files.forEach(f => {
+          const el = document.createElement('div');
+          el.className = 'file-item';
+          el.textContent = f.label;
+          el.dataset.path = f.path;
+          el.onclick = () => selectFile(f.path);
+          list.appendChild(el);
+        });
+      } catch {
+        document.getElementById('file-list').innerHTML =
+          '<div style="padding:12px 16px;font-size:12px;color:#f85149;">تعذّر تحميل الملفات</div>';
+      }
+    }
+
+    function selectFile(path) {
+      selectedPath = path;
+      const f = files.find(x => x.path === path);
+      if (!f) return;
+
+      document.querySelectorAll('.file-item').forEach(el => {
+        el.classList.toggle('active', el.dataset.path === path);
+      });
+
+      document.getElementById('no-file').style.display = 'none';
+      const tv = document.getElementById('code-view');
+      tv.style.display = 'block';
+      tv.value = f.content;
+
+      document.getElementById('instruction').disabled = false;
+      document.getElementById('apply-btn').disabled = false;
+      setStatus('', 'جاهز — اكتب التعديل واضغط "طبّق"');
+    }
+
+    async function applyEdit() {
+      if (busy || !selectedPath) return;
+      const instruction = document.getElementById('instruction').value.trim();
+      if (!instruction) {
+        setStatus('err', 'يرجى كتابة التعديل المطلوب أولاً');
+        return;
+      }
+
+      busy = true;
+      const btn = document.getElementById('apply-btn');
+      btn.disabled = true;
+      btn.textContent = '⏳ جاري...';
+      document.getElementById('instruction').disabled = true;
+      setStatus('busy', 'يتم إرسال الطلب إلى الذكاء الاصطناعي...');
+
+      try {
+        const res = await fetch('/api/code/edit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filePath: selectedPath, instruction }),
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          setStatus('busy', 'تم التعديل — جاري إعادة بناء البوت...');
+          document.getElementById('code-view').value = '⏳ جاري إعادة التشغيل...';
+          pollRestart();
+        } else {
+          setStatus('err', data.message || 'حدث خطأ غير معروف');
+          resetBtn();
+        }
+      } catch {
+        setStatus('err', 'تعذّر الاتصال بالخادم');
+        resetBtn();
+      }
+    }
+
+    function resetBtn() {
+      busy = false;
+      const btn = document.getElementById('apply-btn');
+      btn.disabled = false;
+      btn.textContent = '⚡ طبّق';
+      document.getElementById('instruction').disabled = false;
+    }
+
+    async function pollRestart() {
+      let attempts = 0;
+      const interval = setInterval(async () => {
+        attempts++;
+        try {
+          const res = await fetch('/api/bot/status');
+          if (res.ok) {
+            clearInterval(interval);
+            setStatus('ok', '✅ تم تطبيق التعديل وإعادة تشغيل البوت بنجاح!');
+            document.getElementById('instruction').value = '';
+            await loadFiles();
+            if (selectedPath) selectFile(selectedPath);
+            resetBtn();
+          }
+        } catch { /* server still restarting */ }
+        if (attempts > 60) {
+          clearInterval(interval);
+          setStatus('err', 'انتهت مهلة الانتظار — يرجى التحقق يدوياً');
+          resetBtn();
+        }
+      }, 2000);
+    }
+
+    loadFiles();
   </script>
 </body>
 </html>`;
