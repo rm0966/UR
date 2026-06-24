@@ -511,7 +511,7 @@ const EDITOR_HTML = `<!DOCTYPE html>
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>〆 𝐔𝐑 — محرر الكود</title>
+  <title>〆 𝐔𝐑 — مطوّر الكود</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -533,24 +533,11 @@ const EDITOR_HTML = `<!DOCTYPE html>
       justify-content: space-between;
       flex-shrink: 0;
     }
-
-    .header-title {
-      font-size: 16px;
-      font-weight: 700;
-      color: #f0f6fc;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .back-link {
-      font-size: 13px;
-      color: #58a6ff;
-      text-decoration: none;
-    }
-
+    .header-title { font-size: 16px; font-weight: 700; color: #f0f6fc; }
+    .back-link { font-size: 13px; color: #58a6ff; text-decoration: none; }
     .back-link:hover { text-decoration: underline; }
 
+    /* ── Layout ───────────────────────────── */
     .layout {
       display: flex;
       flex: 1;
@@ -558,40 +545,60 @@ const EDITOR_HTML = `<!DOCTYPE html>
       height: calc(100vh - 53px);
     }
 
-    /* ── Sidebar ─────────────────────────── */
+    /* ── Sidebar (file viewer) ────────────── */
     .sidebar {
-      width: 200px;
+      width: 220px;
       background: #161b22;
       border-left: 1px solid #30363d;
       display: flex;
       flex-direction: column;
       flex-shrink: 0;
     }
-
     .sidebar-title {
-      padding: 12px 16px;
+      padding: 10px 14px;
       font-size: 11px;
       font-weight: 700;
       color: #8b949e;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
+      letter-spacing: .5px;
       border-bottom: 1px solid #21262d;
     }
-
     .file-item {
-      padding: 10px 16px;
-      font-size: 13px;
+      padding: 9px 14px;
+      font-size: 12px;
       color: #8b949e;
       cursor: pointer;
       border-bottom: 1px solid #21262d;
-      transition: background 0.15s, color 0.15s;
-      font-family: 'Cascadia Code', 'Fira Code', monospace;
+      font-family: 'Fira Code', monospace;
+      transition: background .15s, color .15s;
     }
-
-    .file-item:hover { background: #21262d; color: #e6edf3; }
+    .file-item:hover  { background: #21262d; color: #e6edf3; }
     .file-item.active { background: #1f3558; color: #58a6ff; border-right: 2px solid #58a6ff; }
 
-    /* ── Main ────────────────────────────── */
+    .code-preview {
+      flex: 1;
+      overflow: auto;
+      background: #0d1117;
+    }
+    .code-preview pre {
+      padding: 14px 16px;
+      font-family: 'Fira Code', 'Courier New', monospace;
+      font-size: 11.5px;
+      line-height: 1.65;
+      color: #c9d1d9;
+      direction: ltr;
+      text-align: left;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .no-file-hint {
+      padding: 24px 14px;
+      font-size: 12px;
+      color: #30363d;
+      text-align: center;
+    }
+
+    /* ── Main chat area ───────────────────── */
     .main {
       flex: 1;
       display: flex;
@@ -599,178 +606,247 @@ const EDITOR_HTML = `<!DOCTYPE html>
       overflow: hidden;
     }
 
-    .code-area {
+    /* ── Steps log ───────────────────────── */
+    .steps-area {
       flex: 1;
-      overflow: hidden;
-      position: relative;
+      overflow-y: auto;
+      padding: 20px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
     }
 
-    textarea#code-view {
-      width: 100%;
-      height: 100%;
-      background: #0d1117;
-      color: #c9d1d9;
-      border: none;
-      outline: none;
-      padding: 16px 20px;
-      font-family: 'Cascadia Code', 'Fira Code', 'Courier New', monospace;
+    .step {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      animation: fadeIn .3s ease;
+    }
+
+    @keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+
+    .step-icon {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
       font-size: 13px;
-      line-height: 1.6;
-      resize: none;
-      direction: ltr;
-      text-align: left;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .step-icon.thinking { background: #21262d; color: #d29922; animation: pulse 1s infinite; }
+    .step-icon.ok       { background: #0d2818; color: #3fb950; }
+    .step-icon.err      { background: #2d0f0e; color: #f85149; }
+    .step-icon.info     { background: #1a2332; color: #58a6ff; }
+    .step-icon.build    { background: #1e1b2e; color: #a371f7; }
+
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+
+    .step-body { flex: 1; }
+    .step-label { font-size: 12px; color: #8b949e; margin-bottom: 3px; }
+    .step-text  { font-size: 14px; color: #e6edf3; line-height: 1.5; white-space: pre-wrap; }
+    .step-text.mono {
+      font-family: 'Fira Code', monospace;
+      font-size: 12px;
+      color: #f85149;
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 8px 12px;
+      margin-top: 4px;
     }
 
-    /* ── Bottom Panel ─────────────────────── */
-    .bottom-panel {
+    .modified-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 6px;
+    }
+    .chip {
+      background: #0d2818;
+      border: 1px solid #3fb95055;
+      color: #3fb950;
+      font-size: 11px;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-family: 'Fira Code', monospace;
+      cursor: pointer;
+    }
+    .chip:hover { background: #1a3d28; }
+
+    .empty-state {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      color: #30363d;
+    }
+    .empty-icon { font-size: 48px; }
+    .empty-text { font-size: 15px; }
+    .example-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+      max-width: 480px;
+    }
+    .example-chip {
+      background: #161b22;
+      border: 1px solid #30363d;
+      color: #8b949e;
+      font-size: 12px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: border-color .2s, color .2s;
+    }
+    .example-chip:hover { border-color: #58a6ff; color: #58a6ff; }
+
+    /* ── Input bar ────────────────────────── */
+    .input-bar {
       background: #161b22;
       border-top: 1px solid #30363d;
       padding: 16px 20px;
       display: flex;
-      flex-direction: column;
-      gap: 12px;
+      gap: 10px;
+      align-items: flex-end;
       flex-shrink: 0;
     }
 
-    .instruction-row {
-      display: flex;
-      gap: 10px;
-      align-items: flex-end;
-    }
-
-    .instruction-wrap {
+    textarea#request {
       flex: 1;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-
-    .instruction-label {
-      font-size: 12px;
-      color: #8b949e;
-      font-weight: 600;
-    }
-
-    textarea#instruction {
-      width: 100%;
       background: #0d1117;
       border: 1px solid #30363d;
-      border-radius: 8px;
+      border-radius: 10px;
       color: #e6edf3;
-      padding: 10px 14px;
+      padding: 11px 14px;
       font-size: 14px;
       font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
       resize: none;
       outline: none;
-      height: 64px;
-      transition: border-color 0.2s;
+      min-height: 48px;
+      max-height: 120px;
+      line-height: 1.5;
+      transition: border-color .2s;
     }
+    textarea#request:focus { border-color: #58a6ff; }
 
-    textarea#instruction:focus { border-color: #58a6ff; }
-
-    .apply-btn {
+    .send-btn {
       background: #1f6feb;
       color: #fff;
       border: none;
-      border-radius: 8px;
-      padding: 0 24px;
-      height: 64px;
-      font-size: 14px;
-      font-weight: 700;
+      border-radius: 10px;
+      width: 48px; height: 48px;
+      font-size: 18px;
       cursor: pointer;
-      transition: background 0.2s, transform 0.1s;
-      white-space: nowrap;
+      transition: background .2s, transform .1s;
       flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
     }
-
-    .apply-btn:hover:not(:disabled) { background: #388bfd; transform: translateY(-1px); }
-    .apply-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-    /* ── Status bar ───────────────────────── */
-    .status-bar {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      font-size: 13px;
-      min-height: 20px;
-    }
-
-    .status-dot {
-      width: 8px; height: 8px;
-      border-radius: 50%;
-      background: #30363d;
-      flex-shrink: 0;
-    }
-
-    .status-dot.ok   { background: #3fb950; box-shadow: 0 0 6px #3fb95088; }
-    .status-dot.err  { background: #f85149; box-shadow: 0 0 6px #f8514988; }
-    .status-dot.busy { background: #d29922; animation: pulse 1s infinite; }
-
-    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
-
-    .status-msg { color: #8b949e; flex: 1; }
-    .status-msg.ok  { color: #3fb950; }
-    .status-msg.err { color: #f85149; white-space: pre-wrap; }
-
-    .no-file {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #30363d;
-      font-size: 15px;
-    }
+    .send-btn:hover:not(:disabled) { background: #388bfd; transform: translateY(-1px); }
+    .send-btn:disabled { opacity: .45; cursor: not-allowed; }
   </style>
 </head>
 <body>
   <header>
-    <div class="header-title">✏️ محرر الكود الذكي — 〆 𝐔𝐑</div>
+    <div class="header-title">🤖 مطوّر الكود الذكي — 〆 𝐔𝐑</div>
     <a class="back-link" href="/">→ لوحة التحكم</a>
   </header>
 
   <div class="layout">
+
+    <!-- ── Main ── -->
     <div class="main">
-      <div class="code-area" id="code-area">
-        <div class="no-file" id="no-file">اختر ملفاً من القائمة لعرضه</div>
-        <textarea id="code-view" spellcheck="false" style="display:none"></textarea>
+      <div class="steps-area" id="steps-area">
+        <div class="empty-state" id="empty-state">
+          <div class="empty-icon">✨</div>
+          <div class="empty-text">اكتب ما تريد تغييره في البوت</div>
+          <div class="example-chips">
+            <div class="example-chip" onclick="useExample(this)">أضف أمر /help يعرض قائمة الأوامر</div>
+            <div class="example-chip" onclick="useExample(this)">غيّر رسالة الترحيب عند تشغيل البوت</div>
+            <div class="example-chip" onclick="useExample(this)">زد الـ cooldown لـ 10 ثواني</div>
+            <div class="example-chip" onclick="useExample(this)">اجعل البوت يرد بالإنجليزي على الرسائل الإنجليزية</div>
+          </div>
+        </div>
       </div>
 
-      <div class="bottom-panel">
-        <div class="status-bar">
-          <div class="status-dot" id="sdot"></div>
-          <span class="status-msg" id="smsg">اختر ملفاً ثم اكتب التعديل المطلوب</span>
-        </div>
-        <div class="instruction-row">
-          <div class="instruction-wrap">
-            <div class="instruction-label">التعديل المطلوب (بالعربي أو الإنجليزي)</div>
-            <textarea id="instruction" placeholder="مثال: أضف رسالة ترحيب جديدة عند تشغيل البوت..." disabled></textarea>
-          </div>
-          <button class="apply-btn" id="apply-btn" onclick="applyEdit()" disabled>
-            ⚡ طبّق
-          </button>
-        </div>
+      <div class="input-bar">
+        <textarea id="request" rows="1" placeholder="اكتب ما تريد تغييره في البوت..." onkeydown="handleKey(event)"></textarea>
+        <button class="send-btn" id="send-btn" onclick="sendRequest()" title="إرسال">⚡</button>
       </div>
     </div>
 
+    <!-- ── Sidebar (file viewer) ── -->
     <div class="sidebar">
-      <div class="sidebar-title">الملفات</div>
-      <div id="file-list"><div style="padding:12px 16px;font-size:12px;color:#8b949e;">جاري التحميل...</div></div>
+      <div class="sidebar-title">عرض الملفات</div>
+      <div id="file-list"><div style="padding:12px 14px;font-size:12px;color:#8b949e;">جاري التحميل...</div></div>
+      <div class="code-preview" id="code-preview">
+        <div class="no-file-hint">اضغط على ملف لعرضه</div>
+      </div>
     </div>
   </div>
 
   <script>
     let files = [];
-    let selectedPath = null;
     let busy = false;
 
-    function setStatus(type, msg) {
-      const dot = document.getElementById('sdot');
-      const sm  = document.getElementById('smsg');
-      dot.className = 'status-dot ' + (type || '');
-      sm.className  = 'status-msg '  + (type || '');
-      sm.textContent = msg;
+    /* ── auto-resize textarea ── */
+    const reqTA = document.getElementById('request');
+    reqTA.addEventListener('input', () => {
+      reqTA.style.height = 'auto';
+      reqTA.style.height = Math.min(reqTA.scrollHeight, 120) + 'px';
+    });
+
+    function handleKey(e) {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendRequest(); }
     }
 
+    function useExample(el) {
+      reqTA.value = el.textContent;
+      reqTA.focus();
+    }
+
+    /* ── Steps log ── */
+    function addStep(type, label, text, mono = false) {
+      const icons = { thinking:'⏳', ok:'✅', err:'❌', info:'ℹ️', build:'🔨' };
+      document.getElementById('empty-state')?.remove();
+
+      const div = document.createElement('div');
+      div.className = 'step';
+      div.innerHTML =
+        '<div class="step-icon ' + type + '">' + icons[type] + '</div>' +
+        '<div class="step-body">' +
+          '<div class="step-label">' + label + '</div>' +
+          (text ? '<div class="step-text' + (mono ? ' mono' : '') + '">' + escHtml(text) + '</div>' : '') +
+        '</div>';
+      document.getElementById('steps-area').appendChild(div);
+      div.scrollIntoView({ behavior: 'smooth', block: 'end' });
+      return div;
+    }
+
+    function addModifiedChips(files) {
+      const area = document.getElementById('steps-area');
+      const last = area.lastElementChild?.querySelector('.step-body');
+      if (!last) return;
+      const chips = document.createElement('div');
+      chips.className = 'modified-chips';
+      files.forEach(f => {
+        const c = document.createElement('div');
+        c.className = 'chip';
+        c.textContent = f.split('/').pop();
+        c.title = f;
+        c.onclick = () => selectFile(f);
+        chips.appendChild(c);
+      });
+      last.appendChild(chips);
+    }
+
+    function escHtml(s) {
+      return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    /* ── File sidebar ── */
     async function loadFiles() {
       try {
         const res = await fetch('/api/code/files');
@@ -785,77 +861,74 @@ const EDITOR_HTML = `<!DOCTYPE html>
           el.onclick = () => selectFile(f.path);
           list.appendChild(el);
         });
-      } catch {
-        document.getElementById('file-list').innerHTML =
-          '<div style="padding:12px 16px;font-size:12px;color:#f85149;">تعذّر تحميل الملفات</div>';
-      }
+      } catch {}
     }
 
     function selectFile(path) {
-      selectedPath = path;
       const f = files.find(x => x.path === path);
       if (!f) return;
-
-      document.querySelectorAll('.file-item').forEach(el => {
-        el.classList.toggle('active', el.dataset.path === path);
-      });
-
-      document.getElementById('no-file').style.display = 'none';
-      const tv = document.getElementById('code-view');
-      tv.style.display = 'block';
-      tv.value = f.content;
-
-      document.getElementById('instruction').disabled = false;
-      document.getElementById('apply-btn').disabled = false;
-      setStatus('', 'جاهز — اكتب التعديل واضغط "طبّق"');
+      document.querySelectorAll('.file-item').forEach(el =>
+        el.classList.toggle('active', el.dataset.path === path));
+      const preview = document.getElementById('code-preview');
+      preview.innerHTML = '<pre>' + escHtml(f.content) + '</pre>';
     }
 
-    async function applyEdit() {
-      if (busy || !selectedPath) return;
-      const instruction = document.getElementById('instruction').value.trim();
-      if (!instruction) {
-        setStatus('err', 'يرجى كتابة التعديل المطلوب أولاً');
-        return;
-      }
+    /* ── Send request ── */
+    async function sendRequest() {
+      if (busy) return;
+      const request = reqTA.value.trim();
+      if (!request) return;
 
       busy = true;
-      const btn = document.getElementById('apply-btn');
-      btn.disabled = true;
-      btn.textContent = '⏳ جاري...';
-      document.getElementById('instruction').disabled = true;
-      setStatus('busy', 'يتم إرسال الطلب إلى الذكاء الاصطناعي...');
+      reqTA.disabled = true;
+      document.getElementById('send-btn').disabled = true;
 
+      addStep('info', 'طلبك', request);
+      const thinkStep = addStep('thinking', 'الذكاء الاصطناعي', 'يقرأ الكود ويحدد التعديلات المطلوبة...');
+
+      let data;
       try {
-        const res = await fetch('/api/code/edit', {
+        const res = await fetch('/api/code/smart-edit', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ filePath: selectedPath, instruction }),
+          body: JSON.stringify({ request }),
         });
-        const data = await res.json();
-
-        if (data.success) {
-          setStatus('busy', 'تم التعديل — جاري إعادة بناء البوت...');
-          document.getElementById('code-view').value = '⏳ جاري إعادة التشغيل...';
-          pollRestart();
-        } else {
-          setStatus('err', data.message || 'حدث خطأ غير معروف');
-          resetBtn();
-        }
+        data = await res.json();
       } catch {
-        setStatus('err', 'تعذّر الاتصال بالخادم');
-        resetBtn();
+        thinkStep.querySelector('.step-icon').className = 'step-icon err';
+        thinkStep.querySelector('.step-icon').textContent = '❌';
+        thinkStep.querySelector('.step-text').textContent = 'تعذّر الاتصال بالخادم';
+        resetInput(); return;
       }
+
+      thinkStep.remove();
+
+      if (!data.success) {
+        addStep('err', 'حدث خطأ', data.message, data.message?.includes('\n'));
+        resetInput(); return;
+      }
+
+      if (data.modified?.length === 0) {
+        addStep('ok', 'نتيجة', data.message);
+        resetInput(); return;
+      }
+
+      const buildStep = addStep('build', 'البناء وإعادة التشغيل', 'تم التعديل — جاري البناء...');
+      addModifiedChips(data.modified ?? []);
+
+      pollRestart(buildStep, data.modified ?? []);
+      reqTA.value = '';
+      reqTA.style.height = 'auto';
     }
 
-    function resetBtn() {
+    function resetInput() {
       busy = false;
-      const btn = document.getElementById('apply-btn');
-      btn.disabled = false;
-      btn.textContent = '⚡ طبّق';
-      document.getElementById('instruction').disabled = false;
+      reqTA.disabled = false;
+      document.getElementById('send-btn').disabled = false;
+      reqTA.focus();
     }
 
-    async function pollRestart() {
+    async function pollRestart(stepEl, modified) {
       let attempts = 0;
       const interval = setInterval(async () => {
         attempts++;
@@ -863,17 +936,21 @@ const EDITOR_HTML = `<!DOCTYPE html>
           const res = await fetch('/api/bot/status');
           if (res.ok) {
             clearInterval(interval);
-            setStatus('ok', '✅ تم تطبيق التعديل وإعادة تشغيل البوت بنجاح!');
-            document.getElementById('instruction').value = '';
+            stepEl.querySelector('.step-icon').className = 'step-icon ok';
+            stepEl.querySelector('.step-icon').textContent = '✅';
+            stepEl.querySelector('.step-label').textContent = 'اكتمل بنجاح';
+            stepEl.querySelector('.step-text').textContent = 'تم تطبيق التعديل وإعادة تشغيل البوت! 🎉';
             await loadFiles();
-            if (selectedPath) selectFile(selectedPath);
-            resetBtn();
+            if (modified.length > 0) selectFile(modified[0]);
+            resetInput();
           }
-        } catch { /* server still restarting */ }
-        if (attempts > 60) {
+        } catch {}
+        if (attempts > 90) {
           clearInterval(interval);
-          setStatus('err', 'انتهت مهلة الانتظار — يرجى التحقق يدوياً');
-          resetBtn();
+          stepEl.querySelector('.step-icon').className = 'step-icon err';
+          stepEl.querySelector('.step-icon').textContent = '❌';
+          stepEl.querySelector('.step-text').textContent = 'انتهت مهلة الانتظار — تحقق يدوياً';
+          resetInput();
         }
       }, 2000);
     }
