@@ -39,6 +39,20 @@ export function stopBot(): void {
   logger.info("Bot stopped via dashboard");
 }
 
+export async function setBotActivity(type: string, text: string): Promise<void> {
+  if (!activeClient?.isReady()) throw new Error("البوت غير متصل");
+  const types: Record<string, number> = { playing: 0, streaming: 1, listening: 2, watching: 3, competing: 5 };
+  const actType = types[type.toLowerCase()] ?? 0;
+  activeClient.user.setActivity(text, { type: actType as import("discord.js").ActivityType });
+}
+
+export async function setBotNickname(guildId: string, nick: string): Promise<void> {
+  if (!activeClient?.isReady()) throw new Error("البوت غير متصل");
+  const guild = await activeClient.guilds.fetch(guildId);
+  if (!guild) throw new Error("لم يتم العثور على السيرفر — تأكد من صحة الـ ID");
+  await guild.members.me?.setNickname(nick || null);
+}
+
 export async function sendToChannel(channelId: string, content: string): Promise<void> {
   if (!activeClient?.isReady()) throw new Error("البوت غير متصل حالياً");
   const channel = await activeClient.channels.fetch(channelId);

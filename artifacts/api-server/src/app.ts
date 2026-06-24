@@ -3,6 +3,7 @@ import cors from "cors";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import { getCommandStates } from "./bot/commandState";
 
 const app: Express = express();
 
@@ -42,13 +43,34 @@ app.get("/editor", (_req, res) => {
 });
 
 app.get("/commands", (_req, res) => {
+  const cmds: Array<{ name: string; description: string; emoji: string; enabled: boolean }> = getCommandStates();
+  const rows = cmds.map(cmd => {
+    const chk = cmd.enabled ? "checked" : "";
+    return `<div class="cmd-row">
+      <div class="cmd-emoji">${cmd.emoji || "⚙️"}</div>
+      <div class="cmd-info">
+        <div class="cmd-name">/${cmd.name}</div>
+        <div class="cmd-desc">${cmd.description}</div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" ${chk} onchange="toggle('${cmd.name}', this)" />
+        <span class="slider"></span>
+      </label>
+    </div>`;
+  }).join("");
   res.setHeader("Content-Type", "text/html; charset=utf-8");
-  res.send(COMMANDS_HTML);
+  res.setHeader("Cache-Control", "no-store");
+  res.send(COMMANDS_HTML.replace("__ROWS__", rows));
 });
 
 app.get("/templates", (_req, res) => {
   res.setHeader("Content-Type", "text/html; charset=utf-8");
   res.send(TEMPLATES_HTML);
+});
+
+app.get("/settings", (_req, res) => {
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  res.send(SETTINGS_HTML);
 });
 
 app.use("/api", router);
@@ -385,6 +407,9 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       </a>
       <a href="/templates" style="flex:1;min-width:120px;display:block;text-align:center;font-size:13px;color:#58a6ff;text-decoration:none;background:#161b22;border:1px solid #30363d;border-radius:8px;padding:9px 0;">
         📨 القوالب
+      </a>
+      <a href="/settings" style="flex:1;min-width:120px;display:block;text-align:center;font-size:13px;color:#58a6ff;text-decoration:none;background:#161b22;border:1px solid #30363d;border-radius:8px;padding:9px 0;">
+        ⚙️ الإعدادات
       </a>
       <a href="/editor" style="flex:1;min-width:120px;display:block;text-align:center;font-size:13px;color:#58a6ff;text-decoration:none;background:#161b22;border:1px solid #30363d;border-radius:8px;padding:9px 0;">
         ✏️ محرر الكود
@@ -1063,7 +1088,7 @@ const COMMANDS_HTML = `<!DOCTYPE html>
   </header>
 
   <div class="card" id="cmd-list">
-    <div class="loading-text">جاري التحميل...</div>
+    __ROWS__
   </div>
 
   <div class="toast" id="toast"></div>
@@ -1074,28 +1099,6 @@ const COMMANDS_HTML = `<!DOCTYPE html>
       t.textContent = msg;
       t.classList.add('show');
       setTimeout(() => t.classList.remove('show'), 2500);
-    }
-
-    async function loadCommands() {
-      const res = await fetch('/api/bot/commands');
-      const cmds = await res.json();
-      const list = document.getElementById('cmd-list');
-      list.innerHTML = '';
-      cmds.forEach(cmd => {
-        const row = document.createElement('div');
-        row.className = 'cmd-row';
-        row.innerHTML =
-          '<div class="cmd-emoji">' + cmd.emoji + '</div>' +
-          '<div class="cmd-info">' +
-            '<div class="cmd-name">/' + cmd.name + '</div>' +
-            '<div class="cmd-desc">' + cmd.description + '</div>' +
-          '</div>' +
-          '<label class="toggle">' +
-            '<input type="checkbox" ' + (cmd.enabled ? 'checked' : '') + ' onchange="toggle(\'' + cmd.name + '\', this)" />' +
-            '<span class="slider"></span>' +
-          '</label>';
-        list.appendChild(row);
-      });
     }
 
     async function toggle(name, el) {
@@ -1436,6 +1439,204 @@ const TEMPLATES_HTML = `<!DOCTYPE html>
     }
 
     loadTemplates();
+  </script>
+</body>
+</html>`;
+
+const SETTINGS_HTML = `<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>⚙️ الإعدادات — 〆 UR</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0d1117; color: #e6edf3; min-height: 100vh; }
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 24px; background: #161b22; border-bottom: 1px solid #30363d;
+      position: sticky; top: 0; z-index: 10;
+    }
+    .header-title { font-size: 16px; font-weight: 700; }
+    .back-link { font-size: 13px; color: #58a6ff; text-decoration: none; }
+    .back-link:hover { text-decoration: underline; }
+
+    .page { max-width: 640px; margin: 0 auto; padding: 32px 20px; display: flex; flex-direction: column; gap: 20px; }
+
+    .section {
+      background: #161b22; border: 1px solid #30363d; border-radius: 12px; overflow: hidden;
+    }
+    .section-header {
+      padding: 14px 18px; border-bottom: 1px solid #30363d;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .section-icon { font-size: 18px; }
+    .section-title { font-size: 14px; font-weight: 700; }
+    .section-desc { font-size: 12px; color: #8b949e; margin-top: 2px; }
+    .section-body { padding: 18px; display: flex; flex-direction: column; gap: 12px; }
+
+    .field label { display: block; font-size: 12px; color: #8b949e; margin-bottom: 5px; }
+    .field input, .field select {
+      width: 100%; background: #0d1117; border: 1px solid #30363d; border-radius: 8px;
+      color: #e6edf3; font-size: 14px; padding: 9px 12px; outline: none;
+      font-family: inherit; transition: border-color .2s;
+      -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: #58a6ff; }
+    .field select option { background: #161b22; }
+    .hint { font-size: 11px; color: #6e7681; margin-top: 4px; }
+
+    .row { display: flex; gap: 10px; }
+    .row .field { flex: 1; }
+
+    .action-btn {
+      padding: 9px 20px; border: none; border-radius: 8px;
+      font-size: 13px; font-weight: 600; cursor: pointer;
+      transition: background .2s, opacity .2s;
+    }
+    .action-btn:disabled { opacity: .45; cursor: not-allowed; }
+    .btn-primary { background: #1f6feb; color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: #388bfd; }
+    .btn-danger  { background: none; color: #f85149; border: 1px solid #f8514933; }
+    .btn-danger:hover:not(:disabled) { background: #f8514911; }
+
+    .result {
+      font-size: 13px; padding: 10px 14px; border-radius: 8px; display: none;
+      border: 1px solid transparent;
+    }
+    .result.ok  { background: #0d2119; border-color: #238636; color: #3fb950; display: block; }
+    .result.err { background: #2d1117; border-color: #f85149; color: #f85149; display: block; }
+
+    .toast {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      background: #1f2937; color: #e6edf3; border: 1px solid #30363d;
+      border-radius: 10px; padding: 10px 20px; font-size: 13px;
+      opacity: 0; transition: opacity .3s; pointer-events: none; z-index: 999;
+      white-space: nowrap;
+    }
+    .toast.show { opacity: 1; }
+
+    @media (max-width: 540px) {
+      header { padding: 12px 16px; }
+      .page { padding: 18px 12px; }
+      .row { flex-direction: column; gap: 8px; }
+      .section-body { padding: 14px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-title">⚙️ إعدادات البوت</div>
+    <a class="back-link" href="/">→ لوحة التحكم</a>
+  </header>
+
+  <div class="page">
+
+    <!-- الاسم المستعار -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon">🏷️</div>
+        <div>
+          <div class="section-title">الاسم المستعار في السيرفر</div>
+          <div class="section-desc">غيّر اسم البوت داخل سيرفر معين</div>
+        </div>
+      </div>
+      <div class="section-body">
+        <div class="field">
+          <label>Server ID (ID السيرفر)</label>
+          <input type="text" id="nick-guild" placeholder="مثال: 1234567890123456789" />
+          <div class="hint">🔍 فعّل Developer Mode ← انقر يمين على السيرفر ← Copy Server ID</div>
+        </div>
+        <div class="field">
+          <label>الاسم الجديد (اتركه فارغاً لإزالة الاسم المستعار)</label>
+          <input type="text" id="nick-name" placeholder="مثال: مساعد ذكي" maxlength="32" />
+        </div>
+        <div id="nick-result" class="result"></div>
+        <button class="action-btn btn-primary" onclick="setNickname()">تغيير الاسم</button>
+      </div>
+    </div>
+
+    <!-- حالة البوت -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon">🎮</div>
+        <div>
+          <div class="section-title">حالة البوت (Activity)</div>
+          <div class="section-desc">ما يظهر تحت اسم البوت في قائمة الأعضاء</div>
+        </div>
+      </div>
+      <div class="section-body">
+        <div class="row">
+          <div class="field" style="flex:0 0 160px;">
+            <label>النوع</label>
+            <select id="act-type">
+              <option value="playing">🎮 Playing</option>
+              <option value="watching">👀 Watching</option>
+              <option value="listening">🎵 Listening to</option>
+              <option value="competing">🏆 Competing in</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>النص</label>
+            <input type="text" id="act-text" placeholder="مثال: مع المستخدمين" maxlength="128" />
+          </div>
+        </div>
+        <div id="act-result" class="result"></div>
+        <button class="action-btn btn-primary" onclick="setActivity()">تطبيق الحالة</button>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    function showResult(id, ok, msg) {
+      var el = document.getElementById(id);
+      el.className = 'result ' + (ok ? 'ok' : 'err');
+      el.textContent = msg;
+      setTimeout(function() { el.className = 'result'; }, 4000);
+    }
+
+    async function setNickname() {
+      var guildId  = document.getElementById('nick-guild').value.trim();
+      var nickname = document.getElementById('nick-name').value.trim();
+      if (!guildId) { showResult('nick-result', false, '❌ أدخل ID السيرفر'); return; }
+      var btn = event.target;
+      btn.disabled = true;
+      try {
+        var res = await fetch('/api/bot/set-nickname', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ guildId, nickname }),
+        });
+        var data = await res.json();
+        showResult('nick-result', data.success, data.message);
+      } catch(e) {
+        showResult('nick-result', false, '❌ خطأ في الاتصال');
+      }
+      btn.disabled = false;
+    }
+
+    async function setActivity() {
+      var type = document.getElementById('act-type').value;
+      var text = document.getElementById('act-text').value.trim();
+      if (!text) { showResult('act-result', false, '❌ أدخل نص الحالة'); return; }
+      var btn = event.target;
+      btn.disabled = true;
+      try {
+        var res = await fetch('/api/bot/set-activity', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type, text }),
+        });
+        var data = await res.json();
+        showResult('act-result', data.success, data.message);
+      } catch(e) {
+        showResult('act-result', false, '❌ خطأ في الاتصال');
+      }
+      btn.disabled = false;
+    }
   </script>
 </body>
 </html>`;

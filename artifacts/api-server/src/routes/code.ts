@@ -24,6 +24,31 @@ const openai = new OpenAI({
   baseURL: "https://api.groq.com/openai/v1",
 });
 
+const MODELS = [
+  "llama-3.3-70b-versatile",
+  "llama-3.1-70b-versatile",
+  "llama3-70b-8192",
+  "llama-3.1-8b-instant",
+];
+
+async function chatWithFallback(messages: OpenAI.Chat.ChatCompletionMessageParam[], maxTokens: number): Promise<string> {
+  for (const model of MODELS) {
+    try {
+      const res = await openai.chat.completions.create({ model, max_completion_tokens: maxTokens, messages });
+      const content = res.choices[0]?.message?.content?.trim() ?? "";
+      if (content) { logger.info({ model }, "smart-edit: model used"); return content; }
+    } catch (err: unknown) {
+      const msg = String(err);
+      if (msg.includes("429") || msg.includes("rate") || msg.includes("limit")) {
+        logger.warn({ model, err: msg.slice(0, 120) }, "smart-edit: rate limited, trying next model");
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw new Error("جميع نماذج الذكاء الاصطناعي وصلت حد الاستخدام مؤقتاً. حاول بعد قليل.");
+}
+
 function readFile(rel: string): string {
   try { return readFileSync(resolve(ROOT, rel), "utf-8"); } catch { return ""; }
 }
@@ -72,15 +97,11 @@ router.post("/code/edit", async (req, res) => {
 
   let newContent = "";
   try {
-    const chat = await openai.chat.completions.create({
-      model: "llama-3.3-70b-versatile",
-      max_completion_tokens: 8000,
-      messages: [
-        { role: "system", content: "أنتَ محرر كود TypeScript محترف. أعِد فقط محتوى الملف المعدّل الكامل. لا شرح، لا markdown، لا نص إضافي. فقط الكود النقي." },
-        { role: "user",   content: `الملف: ${filePath}\n\nالمحتوى الحالي:\n${original}\n\nالتعديل المطلوب: ${instruction}\n\nأعِد الملف كاملاً:` },
-      ],
-    });
-    newContent = stripFences(chat.choices[0]?.message?.content?.trim() ?? "");
+    const raw = await chatWithFallback([
+      { role: "system", content: "أنتَ محرر كود TypeScript محترف. أعِد فقط محتوى الملف المعدّل الكامل. لا شرح، لا markdown، لا نص إضافي. فقط الكود النقي." },
+      { role: "user",   content: `الملف: ${filePath}\n\nالمحتوى الحالي:\n${original}\n\nالتعديل المطلوب: ${instruction}\n\nأعِد الملف كاملاً:` },
+    ], 8000);
+    newContent = stripFences(raw);
   } catch (err) {
     res.status(500).json({ success: false, message: `خطأ في AI: ${String(err)}` }); return;
   }
@@ -118,13 +139,10 @@ router.post("/code/smart-edit", async (req, res) => {
 
   let raw = "";
   try {
-    const chat = await openai.chat.completions.create({
-      model: "llama-3.3-70b-versatile",
-      max_completion_tokens: 12000,
-      messages: [
-        {
-          role: "system",
-          content: `أنتَ مساعد برمجة ذكي لمشروع بوت Discord مكتوب بـ TypeScript.
+    raw = await chatWithFallback([
+      {
+        role: "system",
+        content: `أنتَ مساعد برمجة ذكي لمشروع بوت Discord مكتوب بـ TypeScript.
 ستستلم محتوى عدة ملفات وطلباً من المستخدم.
 مهمتك: حدّد الملفات التي تحتاج تعديلاً وأعِد محتواها الكامل بعد التعديل.
 
@@ -138,14 +156,12 @@ router.post("/code/smart-edit", async (req, res) => {
 
 إذا لم يحتج أي ملف تعديلاً، أعِد مصفوفة فارغة: []
 المسارات المسموح بها فقط: ${Object.values(EDITABLE_FILES).join(", ")}`,
-        },
-        {
-          role: "user",
-          content: `الملفات الحالية:\n\n${filesBlock}\n\n---\nالطلب: ${request}`,
-        },
-      ],
-    });
-    raw = chat.choices[0]?.message?.content?.trim() ?? "";
+      },
+      {
+        role: "user",
+        content: `الملفات الحالية:\n\n${filesBlock}\n\n---\nالطلب: ${request}`,
+      },
+    ], 12000);
   } catch (err) {
     logger.error({ err }, "smart-edit AI call failed");
     res.status(500).json({ success: false, message: `خطأ في الذكاء الاصطناعي: ${String(err)}` }); return;
